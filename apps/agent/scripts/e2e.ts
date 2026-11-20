@@ -31,7 +31,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createPublicClient,
-  createTestClient,
   createWalletClient,
   decodeEventLog,
   formatUnits,
@@ -144,7 +143,6 @@ async function main(): Promise<void> {
     anvilProc = await startAnvil();
 
     const publicClient = createPublicClient({ chain: anvil, transport: http(RPC_URL) });
-    const testClient = createTestClient({ chain: anvil, transport: http(RPC_URL), mode: 'anvil' });
     const ownerClient = createWalletClient({ account: ownerAccount, chain: anvil, transport: http(RPC_URL) });
 
     // --- Deploy mock tUSD8 + vault (legacy txs, as on Aevum) ---
@@ -289,10 +287,12 @@ async function main(): Promise<void> {
     await agent2.tick();
     check('restart does not re-pay the period', (await bal(PAYEE)) - payeeBefore === t('5'));
 
-    // --- Advance 11s: next period pays again ---
-    console.log('[e2e] advancing time 11s (next period)');
-    await testClient.increaseTime({ seconds: 11 });
-    await testClient.mine({ blocks: 1 });
+    // --- Advance 11s of WALL time: the agent schedules on the wall clock
+    // (correct for production — bills are wall-clock bills), so chain time
+    // travel would not make a new period due. Sleeping 11s guarantees
+    // crossing into the next 10s period (periods are epoch-aligned). ---
+    console.log('[e2e] waiting 11s (next period)');
+    await sleep(11_000);
     await agent.tick();
     check('second period pays 5.0 more', (await bal(PAYEE)) - payeeBefore === t('10'));
 
@@ -305,8 +305,7 @@ async function main(): Promise<void> {
       args: [0n],
       type: 'legacy',
     });
-    await testClient.increaseTime({ seconds: 11 });
-    await testClient.mine({ blocks: 1 });
+    await sleep(11_000);
     await agent.tick();
     check('revoked session is skipped, no payment', (await bal(PAYEE)) - payeeBefore === t('10'));
     check(
@@ -332,8 +331,7 @@ async function main(): Promise<void> {
     const agent3 = createAgent({ config, logger, executor, state });
     await agent3.tick();
     check('daily session pays first 8.0', (await bal(PAYEE)) - payeeBefore === t('18'));
-    await testClient.increaseTime({ seconds: 11 });
-    await testClient.mine({ blocks: 1 });
+    await sleep(11_000);
     await agent3.tick();
     check('daily allowance exhausted -> no second payment', (await bal(PAYEE)) - payeeBefore === t('18'));
     check(

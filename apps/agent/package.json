@@ -4,7 +4,7 @@
   "description": "AgentPay scheduler + executor: autonomous tUSD8 bill payments from the AgentPayVault via narrow session keys (Aevum Testnet).",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/index.ts",
     "e2e": "tsx scripts/e2e.ts",
     "run-once": "tsx src/cli.ts run-once",
@@ -12,6 +12,7 @@
     "status": "tsx src/cli.ts status",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "validate": "tsx src/cli.ts validate"
   },
   "keywords": [],

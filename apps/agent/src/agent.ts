@@ -86,8 +86,15 @@ export function createAgent({ config, logger, executor, state }: AgentDeps) {
           const row = state.getScheduleState(schedule.id);
           if (!isDue(schedule, row, nowSec)) continue;
           const interval = scheduleIntervalSeconds(schedule);
-          const key = periodKey(nowSec, interval);
           const result = await executor.execute(schedule, nowSec);
+          // Record the period the payment actually LANDED in, not the period
+          // the tick started in. Preflight + simulate + send take seconds, so
+          // a tick that starts just before a period boundary lands its payment
+          // in the next period; recording the tick-start period would leave
+          // the new period payable again on the very next tick (two payments
+          // seconds apart — observed live on Aevum testnet, 2026-11-20). The
+          // skipped old period is never back-paid, per the scheduler policy.
+          const key = periodKey(Math.floor(Date.now() / 1000), interval);
           const record: ExecutionRecord = {
             timestamp: new Date().toISOString(),
             scheduleId: schedule.id,
