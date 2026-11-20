@@ -198,7 +198,7 @@ the design intends.
   ticks, assert on-chain outcomes) on a local anvil chain — 17/17
   checks, no testnet funds needed. See
   [Run the whole flow locally](#run-the-whole-flow-locally-no-funds-needed).
-- **Demo video:** to be recorded and linked here before submission
+- **Demo video:** https://www.youtube.com/watch?v=luBANFwje54
   (3–5 minute walkthrough of the full flow on testnet).
 
 ## Repository layout
