@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+out/
+cache/
+lib/
+broadcast/
+.DS_Store
+dist/
+build/

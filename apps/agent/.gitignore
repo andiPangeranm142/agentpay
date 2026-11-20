@@ -1,0 +1,11 @@
+# Local runtime state — never committed (may contain tx history + local paths)
+state/
+logs/
+schedules.json
+.env
+.env.local
+
+# Build / test artifacts
+dist/
+test/mocks/out/
+test/mocks/cache/

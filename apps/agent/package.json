@@ -1,0 +1,31 @@
+{
+  "name": "@agentpay/agent",
+  "version": "0.1.0",
+  "description": "AgentPay scheduler + executor: autonomous tUSD8 bill payments from the AgentPayVault via narrow session keys (Aevum Testnet).",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "e2e": "tsx scripts/e2e.ts",
+    "run-once": "tsx src/cli.ts run-once",
+    "start": "node dist/index.js",
+    "status": "tsx src/cli.ts status",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "tsx src/cli.ts validate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": "true",
+  "type": "module",
+  "dependencies": {
+    "viem": "^2.58.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

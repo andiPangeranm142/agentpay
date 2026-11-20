@@ -1,0 +1,14 @@
+# Test mocks for the AgentPay agent e2e script ONLY.
+# These are NOT the production contracts (those live in ../../contracts and
+# are owned by the contracts workstream). The mocks implement the same frozen
+# interface so the agent can be tested end-to-end before the real contract
+# artifacts exist. The e2e script prefers the real artifact whenever it is
+# available.
+[profile.default]
+src = "src"
+out = "out"
+libs = []
+solc = "0.8.30"
+# Aevum runs Shanghai — compile the mocks the same way.
+evm_version = "shanghai"
+optimizer = false
