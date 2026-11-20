@@ -199,6 +199,7 @@ the design intends.
   checks, no testnet funds needed. See
   [Run the whole flow locally](#run-the-whole-flow-locally-no-funds-needed).
 - **Demo video:** https://www.youtube.com/watch?v=luBANFwje54
+- **Live demo:** https://andipangeranm142.github.io/agentpay/
   (3–5 minute walkthrough of the full flow on testnet).
 
 ## Repository layout
