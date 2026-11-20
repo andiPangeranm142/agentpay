@@ -130,6 +130,13 @@ h3 { font-size: 1rem; margin: 0; }
   scrollbar-width: none;
 }
 .tab-nav::-webkit-scrollbar { display: none; }
+/* Narrow screens: wrap the tabs into two rows so every section stays
+   visible and tappable — a scrollable pill hid the last tab with no
+   affordance that it could be scrolled. */
+@media (max-width: 560px) {
+  .tab-nav { flex-wrap: wrap; border-radius: 16px; overflow-x: visible; }
+  .tab-nav button { flex: 1 1 40%; }
+}
 .tab-nav button {
   flex: 1;
   white-space: nowrap;

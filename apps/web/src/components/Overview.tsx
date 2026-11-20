@@ -34,6 +34,9 @@ export function Overview({ config, provider, onNavigate }: Props) {
 
   const onRightChain = !isConnected || chainId === aevumTestnet.id;
   const loading = vault.isLoading || wallet.isLoading;
+  // Live reads are per-address: with no wallet connected there is no data
+  // to show, so render placeholders instead of misleading zeros.
+  const showData = config.mode === 'mock' || isConnected;
 
   return (
     <section aria-label="Overview">
@@ -41,7 +44,7 @@ export function Overview({ config, provider, onNavigate }: Props) {
         <div className="card card-hero">
           <div className="card-label">Vault balance</div>
           <div className="big-number">
-            {vault.isLoading ? '…' : `${formatTusd8(vault.data ?? 0n)} tUSD8`}
+            {vault.isLoading ? '…' : showData ? `${formatTusd8(vault.data ?? 0n)} tUSD8` : '—'}
           </div>
           <div className="card-sub">
             {vault.isError
@@ -76,7 +79,7 @@ export function Overview({ config, provider, onNavigate }: Props) {
             </div>
             <div>
               <dt>tUSD8 in wallet</dt>
-              <dd>{wallet.isLoading ? '…' : `${formatTusd8(wallet.data ?? 0n)} tUSD8`}</dd>
+              <dd>{wallet.isLoading ? '…' : showData ? `${formatTusd8(wallet.data ?? 0n)} tUSD8` : '—'}</dd>
             </div>
             <div>
               <dt>Network</dt>
@@ -115,26 +118,34 @@ export function Overview({ config, provider, onNavigate }: Props) {
       <div className="grid grid-3">
         <button className="card stat-card" onClick={() => onNavigate('sessions')}>
           <div className="card-label">Active sessions</div>
-          <div className="stat-number">{sessions.isLoading ? '…' : activeSessions}</div>
+          <div className="stat-number">{sessions.isLoading ? '…' : showData ? activeSessions : '—'}</div>
           <div className="card-sub">Session keys that can pay right now →</div>
         </button>
         <button className="card stat-card" onClick={() => onNavigate('activity')}>
           <div className="card-label">Spent today</div>
           <div className="stat-number">
-            {sessions.isLoading ? '…' : `${formatTusd8(spentTodayTotal)} tUSD8`}
+            {sessions.isLoading ? '…' : showData ? `${formatTusd8(spentTodayTotal)} tUSD8` : '—'}
           </div>
           <div className="card-sub">
-            of {formatTusd8(dailyLimitTotal)} tUSD8 daily limit across active sessions →
+            {showData
+              ? `of ${formatTusd8(dailyLimitTotal)} tUSD8 daily limit across active sessions →`
+              : 'Connect your wallet to see your limits →'}
           </div>
         </button>
         <button className="card stat-card" onClick={() => onNavigate('activity')}>
           <div className="card-label">Payments (recent)</div>
-          <div className="stat-number">{payments.isLoading ? '…' : (payments.data?.length ?? 0)}</div>
+          <div className="stat-number">{payments.isLoading ? '…' : showData ? (payments.data?.length ?? 0) : '—'}</div>
           <div className="card-sub">On-chain payment events →</div>
         </button>
       </div>
 
       {loading && <p className="muted">Loading vault data…</p>}
+      {config.mode === 'live' && !isConnected && (
+        <p className="muted">
+          Connect your wallet to see your vault balance, sessions and payments —
+          everything is read live from the chain for the connected address.
+        </p>
+      )}
       {config.mode === 'mock' && (
         <p className="muted">
           Demo data is shown because no vault contract is configured yet. Connect a

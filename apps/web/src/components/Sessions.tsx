@@ -313,6 +313,12 @@ export function Sessions({ config, provider }: Props) {
         </div>
       )}
       {sessions.isLoading && <p className="muted">Loading sessions…</p>}
+      {live && !isConnected && (
+        <p className="muted">
+          Connect your wallet to see your sessions — they are read live from the
+          vault for the connected address.
+        </p>
+      )}
       {sessions.isError && (
         <div className="banner banner-error" role="alert">
           Could not load sessions. Check your connection and press Refresh.
@@ -372,7 +378,7 @@ function SessionCard({
       <div className="session-head">
         <h3>
           {s.label ?? `Session #${s.id.toString()}`}
-          {!s.label && <span className="muted small"> · #{s.id.toString()}</span>}
+          {s.label && <span className="muted small"> · #{s.id.toString()}</span>}
         </h3>
         <span
           className={`badge ${

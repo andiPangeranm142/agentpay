@@ -189,9 +189,11 @@ export function DepositWithdraw({ config, provider }: Props) {
           <span className="field-label">
             Amount (tUSD8)
             <span className="field-hint">
-              {mode === 'deposit'
-                ? `Wallet: ${formatTusd8(walletBalance)} tUSD8`
-                : `Vault: ${formatTusd8(vaultBalance)} tUSD8`}
+              {live && !isConnected
+                ? '—'
+                : mode === 'deposit'
+                  ? `Wallet: ${formatTusd8(walletBalance)} tUSD8`
+                  : `Vault: ${formatTusd8(vaultBalance)} tUSD8`}
             </span>
           </span>
           <div className="input-row">
@@ -209,7 +211,7 @@ export function DepositWithdraw({ config, provider }: Props) {
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              disabled={busy}
+              disabled={busy || (live && !isConnected)}
               onClick={() =>
                 setAmount(
                   formatUnits(mode === 'deposit' ? walletBalance : vaultBalance, TUSD8_DECIMALS),

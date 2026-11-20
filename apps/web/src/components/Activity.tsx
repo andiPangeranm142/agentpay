@@ -29,11 +29,14 @@ function startOfTodaySec(): number {
  * src/lib/provider.ts.
  */
 export function Activity({ config, provider }: Props) {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const payments = usePayments(provider, address);
   const sessions = useSessions(provider, address);
 
   const live = config.mode === 'live';
+  // Live reads are per-address: with no wallet connected there is no data
+  // to show, so render placeholders instead of misleading zeros.
+  const showData = !live || isConnected;
   const todayStart = startOfTodaySec();
   const spentToday =
     payments.data
@@ -74,11 +77,17 @@ export function Activity({ config, provider }: Props) {
             {payments.isFetching ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
-        <div className="big-number">{formatTusd8(spentToday)} tUSD8</div>
+        <div className="big-number">{showData ? `${formatTusd8(spentToday)} tUSD8` : '—'}</div>
         <p className="muted">
-          spent today, of {formatTusd8(dailyLimitTotal)} tUSD8 total daily limit
-          across active sessions · {formatTusd8(totalSpent)} tUSD8 all-time (
-          {payments.data?.length ?? 0} payments)
+          {showData ? (
+            <>
+              spent today, of {formatTusd8(dailyLimitTotal)} tUSD8 total daily limit
+              across active sessions · {formatTusd8(totalSpent)} tUSD8 all-time (
+              {payments.data?.length ?? 0} payments)
+            </>
+          ) : (
+            'Connect your wallet to see your spend — payments are read live from on-chain events for the connected address.'
+          )}
         </p>
         <div
           className="progress"
@@ -109,6 +118,11 @@ export function Activity({ config, provider }: Props) {
         <p className="muted">
           No payments yet. Once a session key pays a bill, it shows up here with
           its transaction hash.
+        </p>
+      )}
+      {live && !isConnected && (
+        <p className="muted">
+          Connect your wallet to see your payments.
         </p>
       )}
 

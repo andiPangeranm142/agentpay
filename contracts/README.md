@@ -19,9 +19,9 @@ balance, and a session key can only pay allowlisted payees within limits.
   bad bytecode. (`make fork` and `make test-fork` do this.)
 - **Legacy transactions (type 0)** — always `--legacy` on `forge script`
   against Aevum testnet.
-- **Explorer verification does not work yet** ("forge verify-contract fails
-  for now") — try once after deploy for confirmation, then document the
-  deployed address + exact commit here instead of retrying.
+- **Explorer verification works** — the vault's source was verified on the
+  Aevum explorer after deploy (20 Nov 2026). (The starter kit doc that says
+  "forge verify-contract fails for now" is out of date.)
 - Gas is ~1 gwei; deploying the vault costs far under 0.01 tQDAY.
 
 ## Layout
@@ -54,9 +54,9 @@ Keystore setup (once): `cast wallet import agentpay-deployer --interactive`
 
 | Network | Vault address | Commit | Notes |
 | --- | --- | --- | --- |
-| Aevum testnet (44005) | _not yet deployed — deployer wallet unfunded, awaiting faucet_ | — | tUSD8 `0x456569838f1d43009A91ebA4263147Afd7233483` |
+| Aevum testnet (44005) | [`0x4079f1A0f75458997DCd1A768170b96086276b47`](https://explorer-test.qday.info/address/0x4079f1a0f75458997dcd1a768170b96086276b47) | `2eca873` | Deployed 20 Nov 2026, block 3648790, tx [`0xcef3c2f73f90af7cfa914ea6d4005523c666e380be11aa53c601059f744ccf5d`](https://explorer-test.qday.info/tx/0xcef3c2f73f90af7cfa914ea6d4005523c666e380be11aa53c601059f744ccf5d), **source-verified** on the explorer. Deploy gas 1,016,383 (~0.00102 tQDAY @ 1 gwei). Live E2E verified on-chain: deposit → session → pay → revoke → withdraw (3 sessions, 5 payments of 0.05 tUSD8). tUSD8 `0x456569838f1d43009A91ebA4263147Afd7233483` |
 | Local fork (440050) | `0x9F1EA9089F1239583577168F6D3e5E3426F1bF96` | _uncommitted work, 20 Nov 2026_ | Verified 20 Nov 2026: deploy script + full E2E (approve → deposit 500 → session → pay to daily limit → revoke → withdraw) vs the real tUSD8, legacy txs, Shanghai hardfork. Deploy gas 1,017,663 (~0.00102 tQDAY @ 1 gwei). Fork is ephemeral; address not reusable on testnet. |
 
 Deployer wallet: `0xf2Cc349a7629Ef20110621f713A7153306b05651`
-(currently 0 tQDAY / 0 tUSD8 — deployment is one `make deploy-aevum` command
-the moment funding lands).
+(funded 20 Nov 2026 via the official Discord faucet — 1 tQDAY + 5 tUSD8;
+wallet holds 4.75 tUSD8 after the live E2E runs, verified on-chain 20 Nov 2026).
