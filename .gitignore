@@ -10,3 +10,10 @@ broadcast/
 .DS_Store
 dist/
 build/
+
+# Secrets — never commit keys, wallets, or keystores
+*.pem
+*.key
+*wallet*.json
+*keystore*/
+keystore/
