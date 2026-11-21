@@ -157,7 +157,7 @@ All activity is on **QDay Aevum Testnet** — chain ID **44005**
 (`0xABE5`), RPC `https://rpc-test.qday.info`, explorer
 <https://explorer-test.qday.info>, gas token tQDAY (18 decimals,
 ~1 gwei). All contracts were deployed from the source in this repo
-(v1: commit `2eca873`; v3: commit `0a9540d`).
+(v1: commit `2eca873`; v2: commit `a2ba272`; v3: commit `0a9540d`).
 
 | Contract / token | Address | Explorer |
 | --- | --- | --- |
@@ -169,8 +169,16 @@ All activity is on **QDay Aevum Testnet** — chain ID **44005**
 | tUSD8 (ERC-20, 6 decimals) | `0x456569838f1d43009A91ebA4263147Afd7233483` | [explorer](https://explorer-test.qday.info/address/0x456569838f1d43009A91ebA4263147Afd7233483) |
 | QDayFaucet | `0xE5074CBbd046AFb491EB8692abD6cF7ECCC6dEE5` | [explorer](https://explorer-test.qday.info/address/0xE5074CBbd046AFb491EB8692abD6cF7ECCC6dEE5) |
 | Deployer / vault owner (test wallet) | `0xf2Cc349a7629Ef20110621f713A7153306b05651` | [explorer](https://explorer-test.qday.info/address/0xf2Cc349a7629Ef20110621f713A7153306b05651) |
-| Demo session key (test wallet) | `0x19bD0bf921706F17Aa1F3C346C6328382328Ba17` | [explorer](https://explorer-test.qday.info/address/0x19bD0bf921706F17Aa1F3C346C6328382328Ba17) |
+| Demo session key (test wallet, current) | `0xe778B0b2BF7507E2a873c1E99318f3A33Efaa4c0` | [explorer](https://explorer-test.qday.info/address/0xe778B0b2BF7507E2a873c1E99318f3A33Efaa4c0) |
 | Demo payee (test wallet) | `0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd` | [explorer](https://explorer-test.qday.info/address/0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd) |
+
+The demo session key was rotated on 21 November 2026: the previous key
+`0x19bD0bf921706F17Aa1F3C346C6328382328Ba17` was revoked after its
+private key was briefly exposed in a public deploy, and all sessions
+that used it (v1 sessions 0–3, v2 sessions 0–3, v3 sessions 0–2) are
+revoked. The historical runs below still show the old address as the
+session key of those revoked sessions — that on-chain history is not
+rewritten. All future flows use the new key above.
 
 Deployment details (20 November 2026):
 
@@ -222,8 +230,10 @@ Deployment details (21 November 2026, v3):
 ## Proven on testnet — what actually ran
 
 Everything below happened on Aevum testnet on 20 November 2026 and is
-verifiable from the explorer links. Both demo sessions (0 and 1) were
-revoked after testing.
+verifiable from the explorer links. Four demo sessions (0–3) were
+created that day; all four were revoked after testing. Together they
+made six payments of 0.05 tUSD8 each (sessions 0–3 paid 1, 3, 1 and
+1 times).
 
 ### End-to-end smoke test (session 0)
 
@@ -255,9 +265,26 @@ block 3,649,011); the remaining 0.05 tUSD8 was withdrawn afterwards
 ([tx `0xf5965172…`](https://explorer-test.qday.info/tx/0xf596517255d79dda9f3a1338294113ee1f6eb503de666ffdb3509fe1b7b9a478),
 block 3,649,308).
 
-On-chain state of the two demo sessions (both revoked after testing, so
+### Later sessions (sessions 2–3)
+
+Two more sessions were created later the same day (per-tx limit 0.05,
+daily limit 0.10 tUSD8), each paying once, 0.05 tUSD8 to the same test
+payee:
+
+| Session | Transaction | Block |
+| --- | --- | --- |
+| 2 | [`0x082b71a0…`](https://explorer-test.qday.info/tx/0x082b71a04698f7ae91fa6fa834578920b781902c86caf0c5bf9e646eba1c23e2) | 3,654,767 |
+| 3 | [`0xe7fba4b0…`](https://explorer-test.qday.info/tx/0xe7fba4b08614c4a3c3b968c3fc180839f92acfc3e52d76fb82c9bb324cd8b156) | 3,655,307 |
+
+Both sessions were revoked afterwards (blocks 3,654,791 and 3,655,331),
+so all four v1 sessions are revoked and the v1 vault emitted six
+`PaymentExecuted` events in total (verified via chunked `eth_getLogs`,
+`nextSessionId` = 4).
+
+On-chain state of the four demo sessions (all revoked after testing, so
 these values no longer change): session 0 `spentToday` 0.05 tUSD8,
-session 1 `spentToday` 0.15 tUSD8. Wallet and vault balances keep
+session 1 `spentToday` 0.15 tUSD8, sessions 2 and 3 `spentToday`
+0.05 tUSD8 each. Wallet and vault balances keep
 changing as live testing continues — check the explorer links above for
 current values.
 
@@ -331,9 +358,10 @@ by `cast call`, 21 Nov 2026): owner **4.65 tUSD8** (0.40 deposited,
 payment arrived), v2 vault balance **0**, `spentPerPayee(session 0,
 payee)` **0.05**, all 4 v2 sessions revoked. Balances keep changing as
 live testing continues — check the explorer links above for current
-values. The dashboard's **Payees · CoP (v2)** tab shows the registered
-payees live from the registry, the name-verified payment, and both
-rejections with their explorer receipts.
+values. The dashboard's **Payees · CoP (v3)** tab shows the v2 registry
+and run below as labelled history: the registered payees live from the
+registry, the name-verified payment, and both rejections with their
+explorer receipts.
 
 ## v3 — Case-insensitive Confirmation of Payee
 
@@ -490,9 +518,10 @@ explorer links above for current values.
   ticks, assert on-chain outcomes) on a local anvil chain — 17/17
   checks, no testnet funds needed. See
   [Run the whole flow locally](#run-the-whole-flow-locally-no-funds-needed).
-- **Demo video:** https://www.youtube.com/watch?v=luBANFwje54
+- **Demo video:** https://www.youtube.com/watch?v=_biU7xKGZLM
+  (2:20 walkthrough of the full flow on testnet — v3,
+  case-insensitive Confirmation of Payee).
 - **Live demo:** https://andipangeranm142.github.io/agentpay/
-  (3–5 minute walkthrough of the full flow on testnet).
 
 ## Repository layout
 
@@ -529,7 +558,7 @@ agentpay/
 │   │   ├── schedules.example.json    # bill schedule template
 │   │   └── README.md         # agent details, skip reasons, layout
 │   └── web/                  # owner dashboard (Vite + React + TypeScript + wagmi/viem)
-│       ├── src/              # Overview / DepositWithdraw / Sessions / Activity / Payees (v2)
+│       ├── src/              # Overview / DepositWithdraw / Sessions / Activity / Payees (v3, current; v2 history below)
 │       ├── public/deployments.json   # live deployment (drives live mode)
 │       └── README.md         # dashboard details, mock vs live mode
 └── docs/
@@ -611,11 +640,24 @@ npm run preview  # serve the production build locally
 In live mode you can: connect a wallet (Aevum testnet, chain 44005),
 deposit tUSD8 (approve + deposit), create a session (allowlist editor,
 per-tx + daily limits, expiry), watch the activity log, revoke a
-session, and withdraw. The **Payees · CoP (v2)** tab reads the
-PayeeRegistry live: registered payee names, name-verified v2 payments,
-per-payee spend vs cap per session, and the two on-chain rejections
-from the recorded testnet run — with no wallet connected it shows the
-demo owner's namespace, clearly labelled.
+session, and withdraw. The **Payees · CoP (v3)** tab — the default tab
+— reads PayeeRegistryV3 live: registered payee names, the
+case-insensitive reverse lookup `addressOf(name)` (lower / UPPER /
+original case must all resolve to the same payee; a typo resolves to
+no payee), name-verified v3 payments, per-payee spend vs cap per
+session, the v3 run end state, and the two on-chain rejections from
+the recorded testnet run — with no wallet connected it shows the demo
+owner's namespace, clearly labelled. The v2 registry and run stay
+below as labelled history.
+
+Every recorded transaction on the Payees tab carries a live finality
+badge, polled by receipt hash via `eth_getTransactionReceipt` and
+re-checked every 30 s (never via event logs, because reverted
+transactions emit no events): **Seen → Finalized at ≥ 12
+confirmations**. That is a confirmation-depth rule, not chain-provided
+absolute finality — Aevum Testnet publishes no finality gadget, so the
+dashboard does not claim one. See `apps/web/README.md` (v3 section +
+"Finality watcher") for the read shapes and the recorded evidence.
 
 ## Run against a local fork of Aevum (real tUSD8, no testnet funds)
 

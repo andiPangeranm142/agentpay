@@ -409,6 +409,9 @@ input:disabled { background: var(--surface-muted); color: var(--muted); }
 .data-table thead th {
   color: var(--muted);
   font-weight: 600;
+  /* Headers never break mid-word (e.g. "addressOf(name)" at 390px):
+     the .table-wrap scrolls horizontally instead. */
+  white-space: nowrap;
 }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .payment-row {

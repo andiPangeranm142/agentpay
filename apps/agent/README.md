@@ -149,7 +149,7 @@ per-schedule failure.
 ```bash
 npm test        # unit tests (vitest): scheduler/idempotency, state store,
                 # preflight decisions, failure classification, retry, config,
-                # log chunking — 87 tests
+                # log chunking — 90 tests
 npm run e2e     # end-to-end on a local anvil chain (Shanghai): deploys a
                 # mock tUSD8 + the vault, funds it, creates sessions, runs
                 # the real agent ticks and asserts on-chain outcomes — 17 checks
