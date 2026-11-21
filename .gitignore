@@ -5,7 +5,7 @@ node_modules/
 *.log
 out/
 cache/
-lib/
+contracts/lib/
 broadcast/
 .DS_Store
 dist/
