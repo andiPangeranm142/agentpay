@@ -518,7 +518,7 @@ explorer links above for current values.
   ticks, assert on-chain outcomes) on a local anvil chain — 17/17
   checks, no testnet funds needed. See
   [Run the whole flow locally](#run-the-whole-flow-locally-no-funds-needed).
-- **Demo video:** https://www.youtube.com/watch?v=_biU7xKGZLM
+- **Demo video:** https://www.youtube.com/watch?v=H0veRvVyogQ
   (2:20 walkthrough of the full flow on testnet — v3,
   case-insensitive Confirmation of Payee).
 - **Live demo:** https://andipangeranm142.github.io/agentpay/
