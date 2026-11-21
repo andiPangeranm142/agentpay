@@ -546,3 +546,67 @@ export const REGISTRY_ABI = [
   { type: 'error', name: 'PayeeNotRegistered', inputs: [] },
   { type: 'error', name: 'PayeeAlreadyRegistered', inputs: [] },
 ] as const;
+
+/**
+ * ABIs for AgentPayVaultV3 + PayeeRegistryV3 (case-insensitive
+ * Confirmation of Payee, v3).
+ *
+ * Verified field-for-field against contracts/src/AgentPayVaultV3.sol and
+ * contracts/src/PayeeRegistryV3.sol (21 Nov 2026):
+ *
+ * - AgentPayVaultV3's EXTERNAL interface is identical to v2's: same
+ *   functions, events, session struct (perPayeeCap included) and error
+ *   names. The v3 differences are internal — fail-fast createSession
+ *   (reverts PayeeNotRegistered for unregistered payees) and
+ *   case-insensitive name matching via the v3 registry — so the v2 ABI
+ *   is reused verbatim. (PayeeNameMismatch now carries normalized-name
+ *   hashes, but the error signature is unchanged.)
+ * - PayeeRegistryV3 keeps every v2 function/event and adds the reverse
+ *   lookup `addressOf(owner, name)`, the `normalize` /
+ *   `normalizedHash` / `registeredNameHash` views, and the
+ *   `NameAlreadyTaken(holder)` error for per-owner name uniqueness.
+ */
+export const VAULT_V3_ABI = VAULT_V2_ABI;
+
+export const REGISTRY_V3_ABI = [
+  ...REGISTRY_ABI,
+  {
+    type: 'function',
+    name: 'addressOf',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'name', type: 'string' },
+    ],
+    outputs: [{ name: 'payee', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'normalize',
+    inputs: [{ name: 'name', type: 'string' }],
+    outputs: [{ name: 'normalized', type: 'bytes' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    name: 'normalizedHash',
+    inputs: [{ name: 'name', type: 'string' }],
+    outputs: [{ name: 'hash', type: 'bytes32' }],
+    stateMutability: 'pure',
+  },
+  {
+    type: 'function',
+    name: 'registeredNameHash',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'payee', type: 'address' },
+    ],
+    outputs: [{ name: 'hash', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'error',
+    name: 'NameAlreadyTaken',
+    inputs: [{ name: 'holder', type: 'address' }],
+  },
+] as const;

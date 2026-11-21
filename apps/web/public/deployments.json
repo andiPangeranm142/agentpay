@@ -19,5 +19,14 @@
   "v2DeploymentBlockRegistry": "3730439",
   "v2DeploymentBlockVault": "3730440",
   "v2Notes": "Confirmation of Payee: per-owner payee-name registry + vault v2 that reverts on name mismatch (PayeeNameMismatch) or unregistered payee (PayeeNotRegistered), plus per-payee spend cap. Live E2E 21 Nov 2026: deposit 0.40 tUSD8, registered 'Sari Bakery' for 0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd, payment 0.05 tUSD8 with matching name OK, wrong-name and lookalike payments reverted on-chain (status 0x0), sessions revoked, 0.35 tUSD8 withdrawn.",
-  "v2SourceVerified": true
+  "v2SourceVerified": true,
+  "AgentPayVaultV3": "0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e",
+  "PayeeRegistryV3": "0x75d65168A8aB54dF423E350e306FAB438A312dB4",
+  "v3DeployTxRegistry": "0x723879bb3b09fead5505a631a5ee9c3bc2845ecdabc7debebc584d752b665b9e",
+  "v3DeployTxVault": "0xf00d65cb1b7b8608b7d902633c07ef1e18e95e2a3fc7356bb4597f5150d3b445",
+  "v3DeployedAt": "2026-11-21",
+  "v3DeploymentBlockRegistry": "3740129",
+  "v3DeploymentBlockVault": "3740129",
+  "v3Notes": "Case-insensitive Confirmation of Payee: registry normalizes names to ASCII lowercase for comparison (original case kept for display), reverse lookup addressOf(owner, name), per-owner name uniqueness (NameAlreadyTaken), vault v3 fail-fast createSession reverts PayeeNotRegistered for unregistered payees. Live E2E 21 Nov 2026 (official run, sessions 1-2): renamed payee 0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd to 'Kedai Kopi Senja' via updatePayee, deposit 0.40 tUSD8, payment 0.05 tUSD8 with LOWERCASE name 'kedai kopi senja' OK, typo-name payment reverted on-chain (status 0x0, PayeeNameMismatch), duplicate-name register reverted on-chain (status 0x0, NameAlreadyTaken), createSession with unregistered payee reverted on-chain (status 0x0, PayeeNotRegistered), payment to a payee removed after session creation reverted on-chain (status 0x0, PayeeNotRegistered, defence in depth), sessions revoked, 0.35 tUSD8 withdrawn. Final: owner 4.55 / payee 0.45 / vault v3 0 tUSD8.",
+  "v3SourceVerified": true
 }

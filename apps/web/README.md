@@ -50,20 +50,30 @@ The app fetches it at runtime. Recognised keys (any of these spellings):
   "AgentPayVault": "0x…",
   "AgentPayVaultV2": "0x…",
   "PayeeRegistry": "0x…",
+  "AgentPayVaultV3": "0x…",
+  "PayeeRegistryV3": "0x…",
   "deployer": "0x…",
   "tUSD8": "0x456569838f1d43009A91ebA4263147Afd7233483",
   "deploymentBlock": "123456",
   "v2DeploymentBlockRegistry": "123456",
   "v2DeploymentBlockVault": "123457",
+  "v3DeploymentBlockRegistry": "123456",
+  "v3DeploymentBlockVault": "123456",
+  "deployTx": "0x…",
+  "v2DeployTxRegistry": "0x…",
+  "v2DeployTxVault": "0x…",
+  "v3DeployTxRegistry": "0x…",
+  "v3DeployTxVault": "0x…",
   "rpcUrl": "https://rpc-test.qday.info",
   "explorerUrl": "https://explorer-test.qday.info"
 }
 ```
 
 **Include `deploymentBlock`** — event scans start there. Without it the app
-falls back to the last 10,000 blocks. The v2 keys drive the **Payees · CoP
-(v2)** tab; `deployer` lets that tab show the demo owner's registered
-payees when no wallet is connected (clearly labelled).
+falls back to the last 10,000 blocks. The v2/v3 keys drive the
+**Payees · CoP (v3)** tab; `deployer` lets that tab show the demo owner's
+registered payees when no wallet is connected (clearly labelled). The
+`*DeployTx*` keys feed the finality watcher (see below).
 
 Option B — env vars (copy `.env.example` to `.env`):
 
@@ -71,6 +81,8 @@ Option B — env vars (copy `.env.example` to `.env`):
 VITE_VAULT_ADDRESS=0x…
 VITE_VAULT_V2_ADDRESS=0x…
 VITE_REGISTRY_ADDRESS=0x…
+VITE_VAULT_V3_ADDRESS=0x…
+VITE_REGISTRY_V3_ADDRESS=0x…
 VITE_TUSD8_ADDRESS=0x456569838f1d43009A91ebA4263147Afd7233483
 VITE_RPC_URL=https://rpc-test.qday.info
 VITE_EXPLORER_URL=https://explorer-test.qday.info
@@ -124,10 +136,12 @@ src/
   App.tsx              # tabs, header, mock banner, wagmi + react-query setup
   lib/
     chain.ts           # Aevum Testnet (44005) chain definition + add-network params
-    abi.ts             # AgentPayVault + AgentPayVaultV2 + PayeeRegistry + ERC-20 ABIs
-    types.ts           # Session / Payment / RegisteredPayee types
-    mock.ts            # demo data (v1 + v2)
+    abi.ts             # AgentPayVault + v2/v3 vaults + registries + ERC-20 ABIs
+    types.ts           # Session / Payment / RegisteredPayee / evidence types
+    mock.ts            # demo data (v1 + v2/v3)
     v2Evidence.ts      # recorded v2 on-chain evidence (reverted txs, e2e run)
+    v3Evidence.ts      # recorded v3 on-chain evidence + test counts
+    finality.ts        # finality watcher: receipt polling by hash, 12-conf rule
     provider.ts        # VaultDataProvider seam: Live (viem) vs Mock
     hooks.ts           # react-query wrappers (30 s polling in live mode)
     format.ts          # formatting + plain-language error translation
@@ -138,13 +152,63 @@ src/
     DepositWithdraw.tsx# approve -> deposit flow with step-by-step status
     Sessions.tsx       # create session (allowlist editor, limits, expiry), list, revoke
     Activity.tsx       # PaymentExecuted events + daily-spend summary
-    Payees.tsx         # v2: registered payees (live), name-checked payments,
-                       # blocked payments, v2 sessions with per-payee caps
+    FinalityBadge.tsx  # live receipt-status badge (Seen -> Finalized)
+    Payees.tsx         # v3 (current): live payees, reverse lookup, payments,
+                       # sessions, end state, blocked actions, recorded run;
+                       # v2 kept below as labelled history
 ```
 
-## v2 — Confirmation of Payee
+## v3 — Case-insensitive Confirmation of Payee (current)
 
-The **Payees · CoP (v2)** tab is the v2 surface. Live reads, all through
+The **Payees · CoP (v3)** tab is the v3 surface. Live reads, all through
+`VaultDataProvider` (the v2/v3 read shapes are shared helpers in
+`provider.ts` — the v3 vault's external interface is identical to v2's):
+
+- `listRegisteredPayeesV3(owner)` — the owner's v3 registry namespace
+  (event rebuild + live `nameOf` confirmation, same as v2).
+- `addressOfV3(owner, name)` — the reverse lookup: the tab queries the
+  first registered payee's name in lower / UPPER / original case (all
+  must resolve to the payee) plus a one-letter typo (must resolve to no
+  payee).
+- `listV3Payments(owner)` / `listV3Sessions(owner)` — v3 payments and
+  sessions with per-payee caps, same shapes as v2.
+- `getV3EndState(owner, payee)` — the recorded run's end state read live
+  (owner/payee wallet balances, vault balances, `nextSessionId` = 3 —
+  sessions 0–2; the fail-fast revert created no session), cross-checked
+  against the recorded end state (owner 4.55 / payee 0.45 / vault 0
+  tUSD8, block 3741216).
+- The two **blocked actions** are recorded evidence in
+  `src/lib/v3Evidence.ts` — the fail-fast `createSession` revert
+  (`PayeeNotRegistered`) and the duplicate-name `registerPayee` revert
+  (`NameAlreadyTaken`), both status 0x0. The full official run (15
+  steps, sessions 1–2, demo payee "Kedai Kopi Senja") is recorded in
+  `V3_E2E_FLOW` in the same file, including the two rejected payments
+  (typo name → `PayeeNameMismatch`, removed lookalike →
+  `PayeeNotRegistered`).
+
+Contract tests (21 Nov 2026, per scope — never summed): forge 142
+(53 v1 + 38 v2 + 51 v3) · fork 7 (3 v1 + 4 v3) · agent vitest 90 ·
+e2e anvil 17/17.
+
+## Finality watcher
+
+Every recorded transaction on the Payees tab (v2/v3 flow steps, blocked
+payments/actions, all five deploy txs) carries a live status badge,
+polled by **hash** via `eth_getTransactionReceipt`
+(`src/lib/finality.ts`, `useTxFinality`, re-checked every 30 s) — never
+via event logs, because reverted transactions emit no events. The
+receipt's status (0x1/0x0) is cross-checked against the recorded result;
+a mismatch shows a warning badge.
+
+**Finalized = ≥ 12 confirmations** — a confirmation-depth rule, not
+chain-provided absolute finality: Aevum Testnet publishes no finality
+gadget, so the dashboard does not claim one (documented in
+`lib/finality.ts` and in the footnote under the evidence tables).
+
+## v2 — Confirmation of Payee (previous version)
+
+The v2 surface is kept on the same tab, below v3, inside a collapsible
+"v2 — previous version" block. Live reads, all through
 `VaultDataProvider`:
 
 - `listRegisteredPayees(owner)` — rebuilds the owner's registry

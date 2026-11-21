@@ -27,7 +27,11 @@ export interface AppConfig {
   vaultV2Address: Address;
   /** PayeeRegistry (v2). Zero address when not configured. */
   registryAddress: Address;
-  /** Deployer / demo owner, when known (used to show demo v2 data with no wallet). */
+  /** v3 vault (case-insensitive CoP, current version). Zero when not configured. */
+  vaultV3Address: Address;
+  /** PayeeRegistryV3. Zero address when not configured. */
+  registryV3Address: Address;
+  /** Deployer / demo owner, when known (used to show demo v2/v3 data with no wallet). */
   deployerAddress?: Address;
   tusd8Address: Address;
   rpcUrl: string;
@@ -37,6 +41,14 @@ export interface AppConfig {
   deploymentBlock?: bigint;
   /** Block the v2 contracts were deployed at, when known. */
   v2DeploymentBlock?: bigint;
+  /** Block the v3 contracts were deployed at, when known. */
+  v3DeploymentBlock?: bigint;
+  /** Deploy tx hashes (from deployments.json), for the finality watcher. */
+  deployTx?: `0x${string}`;
+  v2DeployTxRegistry?: `0x${string}`;
+  v2DeployTxVault?: `0x${string}`;
+  v3DeployTxRegistry?: `0x${string}`;
+  v3DeployTxVault?: `0x${string}`;
   /** Where the live addresses came from, for the footer/debug. */
   source: 'deployments.json' | 'env' | 'defaults (mock)';
 }
@@ -53,6 +65,13 @@ const env = import.meta.env;
 
 function asAddress(v: unknown): Address | undefined {
   return typeof v === 'string' && isAddress(v) ? (v as Address) : undefined;
+}
+
+/** A 32-byte tx hash (0x + 64 hex chars), or undefined. */
+function asTxHash(v: unknown): `0x${string}` | undefined {
+  return typeof v === 'string' && /^0x[0-9a-fA-F]{64}$/.test(v)
+    ? (v as `0x${string}`)
+    : undefined;
 }
 
 /** Accepts the several key spellings a deploy script might emit. */
@@ -97,6 +116,12 @@ export async function loadConfig(): Promise<AppConfig> {
   const registryFromFile = deployments
     ? pickAddress(deployments, ['PayeeRegistry', 'registry', 'registryAddress'])
     : undefined;
+  const vaultV3FromFile = deployments
+    ? pickAddress(deployments, ['AgentPayVaultV3', 'vaultV3', 'vaultV3Address'])
+    : undefined;
+  const registryV3FromFile = deployments
+    ? pickAddress(deployments, ['PayeeRegistryV3', 'registryV3', 'registryV3Address'])
+    : undefined;
   const deployerFromFile = deployments
     ? pickAddress(deployments, ['deployer', 'deployerAddress', 'owner'])
     : undefined;
@@ -117,6 +142,19 @@ export async function loadConfig(): Promise<AppConfig> {
     ? (parseBlock(deployments.v2DeploymentBlockRegistry) ??
       parseBlock(deployments.v2DeploymentBlockVault))
     : undefined;
+  const v3DeploymentBlock = deployments
+    ? (parseBlock(deployments.v3DeploymentBlockRegistry) ??
+      parseBlock(deployments.v3DeploymentBlockVault))
+    : undefined;
+  const deployTx = deployments ? asTxHash(deployments.deployTx) : undefined;
+  const v2DeployTxRegistry = deployments
+    ? asTxHash(deployments.v2DeployTxRegistry)
+    : undefined;
+  const v2DeployTxVault = deployments ? asTxHash(deployments.v2DeployTxVault) : undefined;
+  const v3DeployTxRegistry = deployments
+    ? asTxHash(deployments.v3DeployTxRegistry)
+    : undefined;
+  const v3DeployTxVault = deployments ? asTxHash(deployments.v3DeployTxVault) : undefined;
 
   const vaultAddress =
     vaultFromFile ?? asAddress(env.VITE_VAULT_ADDRESS) ?? ZERO_ADDRESS;
@@ -124,6 +162,10 @@ export async function loadConfig(): Promise<AppConfig> {
     vaultV2FromFile ?? asAddress(env.VITE_VAULT_V2_ADDRESS) ?? ZERO_ADDRESS;
   const registryAddress =
     registryFromFile ?? asAddress(env.VITE_REGISTRY_ADDRESS) ?? ZERO_ADDRESS;
+  const vaultV3Address =
+    vaultV3FromFile ?? asAddress(env.VITE_VAULT_V3_ADDRESS) ?? ZERO_ADDRESS;
+  const registryV3Address =
+    registryV3FromFile ?? asAddress(env.VITE_REGISTRY_V3_ADDRESS) ?? ZERO_ADDRESS;
   const tusd8Address =
     tusd8FromFile ?? asAddress(env.VITE_TUSD8_ADDRESS) ?? DEFAULT_TUSD8_ADDRESS;
   const rpcUrl =
@@ -141,6 +183,8 @@ export async function loadConfig(): Promise<AppConfig> {
     vaultAddress,
     vaultV2Address,
     registryAddress,
+    vaultV3Address,
+    registryV3Address,
     deployerAddress: deployerFromFile,
     tusd8Address,
     rpcUrl,
@@ -148,6 +192,12 @@ export async function loadConfig(): Promise<AppConfig> {
     chainId: CHAIN_ID,
     deploymentBlock,
     v2DeploymentBlock,
+    v3DeploymentBlock,
+    deployTx,
+    v2DeployTxRegistry,
+    v2DeployTxVault,
+    v3DeployTxRegistry,
+    v3DeployTxVault,
     source: live
       ? vaultFromFile
         ? 'deployments.json'

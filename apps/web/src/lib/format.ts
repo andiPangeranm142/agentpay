@@ -76,7 +76,10 @@ export function humanizeError(err: unknown): string {
     return 'That payee is not on this session’s allowlist.';
   }
   if (lower.includes('payeenamemismatch')) {
-    return 'The payee name doesn’t match the registered name for that address. Check the spelling — names are exact and case-sensitive.';
+    return 'The payee name doesn’t match the registered name for that address. Check the spelling — v3 matches names case-insensitively, but the letters must match.';
+  }
+  if (lower.includes('namealreadytaken')) {
+    return 'That name is already registered to another payee in your namespace — names are unique per owner, case-insensitively. Pick a different name.';
   }
   if (lower.includes('payeenotregistered')) {
     return 'No name is registered for that payee address. Register the payee first — the vault blocks payments to unregistered (possibly lookalike) addresses.';

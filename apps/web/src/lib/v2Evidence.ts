@@ -1,5 +1,5 @@
 import { parseUnits, type Address } from 'viem';
-import type { RejectedPayment } from './types';
+import type { FlowStep, RejectedPayment } from './types';
 
 /**
  * RECORDED ON-CHAIN EVIDENCE for the v2 (Confirmation of Payee) testnet run,
@@ -56,14 +56,10 @@ export const V2_REJECTED_PAYMENTS: RejectedPayment[] = [
 ];
 
 /** Key steps of the recorded v2 end-to-end run (all on Aevum testnet). */
-export interface V2FlowStep {
-  step: string;
-  txHash: `0x${string}`;
-  block: number;
-  result: string;
-}
+/** @deprecated Use the shared FlowStep type from ./types. */
+export type V2FlowStep = FlowStep;
 
-export const V2_E2E_FLOW: V2FlowStep[] = [
+export const V2_E2E_FLOW: FlowStep[] = [
   {
     step: 'Deposit 0.40 tUSD8 into the v2 vault',
     txHash:

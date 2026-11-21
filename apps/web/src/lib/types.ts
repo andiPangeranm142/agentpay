@@ -19,15 +19,15 @@ export interface Session {
   remainingDaily: bigint;
   /** Optional human label — mock data only; live sessions have none. */
   label?: string;
-  /** Vault version this session belongs to (1 = AgentPayVault, 2 = AgentPayVaultV2). */
-  version?: 1 | 2;
-  /** v2 only: cumulative cap per payee over the session's life. */
+  /** Vault version this session belongs to (1 = AgentPayVault, 2 = AgentPayVaultV2, 3 = AgentPayVaultV3). */
+  version?: 1 | 2 | 3;
+  /** v2/v3 only: cumulative cap per payee over the session's life. */
   perPayeeCap?: bigint;
-  /** v2 only: per-payee spend vs cap (from spentPerPayee / remainingPayeeAllowance). */
+  /** v2/v3 only: per-payee spend vs cap (from spentPerPayee / remainingPayeeAllowance). */
   payeeSpend?: PayeeSpend[];
 }
 
-/** Per-payee spend against the session's per-payee cap (v2). */
+/** Per-payee spend against the session's per-payee cap (v2/v3). */
 export interface PayeeSpend {
   payee: Address;
   /** Registered name, when the payee is registered in the owner's namespace. */
@@ -37,12 +37,42 @@ export interface PayeeSpend {
   remaining: bigint;
 }
 
-/** A payee registered in an owner's PayeeRegistry namespace (v2). */
+/** A payee registered in an owner's PayeeRegistry namespace (v2/v3). */
 export interface RegisteredPayee {
   payee: Address;
   name: string;
   /** Tx that registered (or last updated) the name, when known. */
   txHash?: `0x${string}`;
+}
+
+/**
+ * A non-payment action that the contracts REJECTED on-chain (reverted tx,
+ * status 0x0) — e.g. v3's fail-fast session creation or a duplicate-name
+ * registration. Like RejectedPayment, these emit no events, so they are
+ * recorded evidence; each entry links to the explorer receipt, which is
+ * the authoritative proof. Never generated from mock data.
+ */
+export interface RejectedAction {
+  txHash: `0x${string}`;
+  block: number;
+  /** Unix seconds (block time). */
+  timestamp: number;
+  /** What was attempted, e.g. 'Create session' / 'Register payee'. */
+  action: string;
+  /** The exact attempt, in plain language. */
+  attempted: string;
+  /** On-chain revert reason (custom error name). */
+  reason: 'PayeeNotRegistered' | 'NameAlreadyTaken';
+  /** Plain-language explanation of what the check caught. */
+  explanation: string;
+}
+
+/** One step of a recorded end-to-end testnet run. */
+export interface FlowStep {
+  step: string;
+  txHash: `0x${string}`;
+  block: number;
+  result: string;
 }
 
 /**
@@ -75,11 +105,11 @@ export interface Payment {
   txHash: `0x${string}`;
   /** Optional human label — mock data only. */
   label?: string;
-  /** Vault version this payment went through (1 = AgentPayVault, 2 = AgentPayVaultV2). */
-  version?: 1 | 2;
-  /** v2 only: registered payee name that the payment's name check matched. */
+  /** Vault version this payment went through (1 = AgentPayVault, 2 = AgentPayVaultV2, 3 = AgentPayVaultV3). */
+  version?: 1 | 2 | 3;
+  /** v2/v3 only: registered payee name that the payment's name check matched. */
   payeeName?: string;
-  /** v2 only: true when the payment passed the Confirmation of Payee check. */
+  /** v2/v3 only: true when the payment passed the Confirmation of Payee check. */
   nameVerified?: boolean;
 }
 

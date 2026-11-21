@@ -2,13 +2,21 @@ import {
   createPublicClient,
   http,
   parseAbiItem,
+  parseUnits,
   type Address,
   type PublicClient,
 } from 'viem';
 import type { AppConfig } from '../config';
 import { ZERO_ADDRESS } from '../config';
 import { aevumTestnet } from './chain';
-import { ERC20_ABI, REGISTRY_ABI, VAULT_ABI, VAULT_V2_ABI } from './abi';
+import {
+  ERC20_ABI,
+  REGISTRY_ABI,
+  REGISTRY_V3_ABI,
+  VAULT_ABI,
+  VAULT_V2_ABI,
+  VAULT_V3_ABI,
+} from './abi';
 import {
   MOCK_PAYMENTS,
   MOCK_REGISTERED_PAYEES,
@@ -66,6 +74,36 @@ export interface VaultDataProvider {
   listV2Sessions(owner: Address): Promise<Session[]>;
   /** Payments on the v2 vault, enriched with the registered payee name. */
   listV2Payments(owner: Address): Promise<Payment[]>;
+  // --- v3: case-insensitive CoP (PayeeRegistryV3 + AgentPayVaultV3) ---
+  /** Registered name for (owner, payee) in the V3 registry; '' when unregistered or v3 unconfigured. */
+  getPayeeNameV3(owner: Address, payee: Address): Promise<string>;
+  /**
+   * Reverse lookup: payee registered under `name` (case-insensitive) in
+   * the owner's V3 namespace; zero address when no payee has that name.
+   */
+  addressOfV3(owner: Address, name: string): Promise<Address>;
+  /** Payees registered in the owner's V3 registry namespace. */
+  listRegisteredPayeesV3(owner: Address): Promise<RegisteredPayee[]>;
+  /** Sessions on the v3 vault, with per-payee cap + spend per payee. */
+  listV3Sessions(owner: Address): Promise<Session[]>;
+  /** Payments on the v3 vault, enriched with the registered payee name. */
+  listV3Payments(owner: Address): Promise<Payment[]>;
+  /** End-state numbers for the recorded v3 run, read live right now. */
+  getV3EndState(owner: Address, payee: Address): Promise<V3EndState>;
+}
+
+/** Live end-state of the recorded v3 run (demo owner + demo payee). */
+export interface V3EndState {
+  /** Sessions ever created on the v3 vault (3 = sessions 0–2; the fail-fast revert created none). */
+  nextSessionId: bigint;
+  /** Demo owner's remaining balance inside the v3 vault (0 = fully withdrawn). */
+  ownerVaultBalance: bigint;
+  /** tUSD8 the v3 vault contract itself holds (0 = fully withdrawn). */
+  vaultTokenBalance: bigint;
+  /** Demo owner's tUSD8 wallet balance (4.55 after the run). */
+  ownerWallet: bigint;
+  /** Demo payee's tUSD8 wallet balance (0.45 after the run). */
+  payeeWallet: bigint;
 }
 
 export function createProvider(config: AppConfig): VaultDataProvider {
@@ -105,6 +143,34 @@ class MockProvider implements VaultDataProvider {
   }
   async listV2Payments(): Promise<Payment[]> {
     return MOCK_V2_PAYMENTS;
+  }
+  async getPayeeNameV3(_owner: Address, payee: Address): Promise<string> {
+    return this.getPayeeName(_owner, payee);
+  }
+  async addressOfV3(_owner: Address, name: string): Promise<Address> {
+    // Case-insensitive reverse lookup over the mock registry.
+    const hit = MOCK_REGISTERED_PAYEES.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase(),
+    );
+    return hit?.payee ?? ZERO_ADDRESS;
+  }
+  async listRegisteredPayeesV3(): Promise<RegisteredPayee[]> {
+    return MOCK_REGISTERED_PAYEES;
+  }
+  async listV3Sessions(): Promise<Session[]> {
+    return MOCK_V2_SESSIONS.map((s) => ({ ...s, version: 3 as const }));
+  }
+  async listV3Payments(): Promise<Payment[]> {
+    return MOCK_V2_PAYMENTS.map((p) => ({ ...p, version: 3 as const }));
+  }
+  async getV3EndState(): Promise<V3EndState> {
+    return {
+      nextSessionId: 3n,
+      ownerVaultBalance: 0n,
+      vaultTokenBalance: 0n,
+      ownerWallet: MOCK_WALLET_BALANCE,
+      payeeWallet: parseUnits('0.45', 6),
+    };
   }
 }
 
@@ -277,7 +343,11 @@ class LiveProvider implements VaultDataProvider {
       .sort((a, b) => b.timestamp - a.timestamp);
   }
 
-  // --- v2: Confirmation of Payee -------------------------------------------
+  // --- v2/v3: Confirmation of Payee (shared helpers) ------------------------
+  // v2 and v3 share the same read shapes: the v3 vault's external
+  // interface is identical to v2's (see abi.ts) and the v3 registry
+  // keeps every v2 function. The helpers below take the addresses as
+  // parameters; the v2/v3 methods are thin wrappers over them.
 
   private get v2Configured(): boolean {
     return this.cfg.vaultV2Address !== ZERO_ADDRESS;
@@ -287,21 +357,35 @@ class LiveProvider implements VaultDataProvider {
     return this.cfg.registryAddress !== ZERO_ADDRESS;
   }
 
-  /** Block range for v2 event scans: v2 deploy block -> latest. */
-  private async v2ScanRange(): Promise<{ from: bigint; to: bigint }> {
+  private get v3Configured(): boolean {
+    return this.cfg.vaultV3Address !== ZERO_ADDRESS;
+  }
+
+  private get registryV3Configured(): boolean {
+    return this.cfg.registryV3Address !== ZERO_ADDRESS;
+  }
+
+  /** Block range for a CoP event scan: that version's deploy block -> latest. */
+  private async scanRangeFrom(
+    fromBlock?: bigint,
+  ): Promise<{ from: bigint; to: bigint }> {
     const to = await this.client.getBlockNumber();
-    if (this.cfg.v2DeploymentBlock !== undefined) {
-      return { from: this.cfg.v2DeploymentBlock, to };
+    if (fromBlock !== undefined) {
+      return { from: fromBlock, to };
     }
     const from = to > FALLBACK_LOOKBACK_BLOCKS ? to - FALLBACK_LOOKBACK_BLOCKS : 0n;
     return { from, to };
   }
 
-  async getPayeeName(owner: Address, payee: Address): Promise<string> {
-    if (!this.registryConfigured) return '';
+  /** nameOf on any registry (v2 or v3 — same function). '' on any failure. */
+  private async getRegistryName(
+    registry: Address,
+    owner: Address,
+    payee: Address,
+  ): Promise<string> {
     try {
       return await this.client.readContract({
-        address: this.cfg.registryAddress,
+        address: registry,
         abi: REGISTRY_ABI,
         functionName: 'nameOf',
         args: [owner, payee],
@@ -311,9 +395,42 @@ class LiveProvider implements VaultDataProvider {
     }
   }
 
-  async listRegisteredPayees(owner: Address): Promise<RegisteredPayee[]> {
-    if (!this.registryConfigured) return [];
-    const { from, to } = await this.v2ScanRange();
+  async getPayeeName(owner: Address, payee: Address): Promise<string> {
+    if (!this.registryConfigured) return '';
+    return this.getRegistryName(this.cfg.registryAddress, owner, payee);
+  }
+
+  async getPayeeNameV3(owner: Address, payee: Address): Promise<string> {
+    if (!this.registryV3Configured) return '';
+    return this.getRegistryName(this.cfg.registryV3Address, owner, payee);
+  }
+
+  async addressOfV3(owner: Address, name: string): Promise<Address> {
+    if (!this.registryV3Configured) return ZERO_ADDRESS;
+    try {
+      return await this.client.readContract({
+        address: this.cfg.registryV3Address,
+        abi: REGISTRY_V3_ABI,
+        functionName: 'addressOf',
+        args: [owner, name],
+      });
+    } catch {
+      return ZERO_ADDRESS;
+    }
+  }
+
+  /**
+   * Rebuild an owner's registry namespace from PayeeRegistered /
+   * PayeeUpdated / PayeeRemoved events (chronological, chunked
+   * <=1,000 blocks), then confirm each surviving name with a live
+   * nameOf call. Same event shapes on the v2 and v3 registries.
+   */
+  private async listRegistryPayees(
+    registry: Address,
+    fromBlock: bigint | undefined,
+    owner: Address,
+  ): Promise<RegisteredPayee[]> {
+    const { from, to } = await this.scanRangeFrom(fromBlock);
 
     // Registry events are per-owner (owner is indexed). Rebuild the
     // namespace in chronological order: register/update set the name,
@@ -329,7 +446,7 @@ class LiveProvider implements VaultDataProvider {
     const logs = await chunked(from, to, async (f, t) => {
       const [registered, updated, removed] = await Promise.all([
         this.client.getLogs({
-          address: this.cfg.registryAddress,
+          address: registry,
           event: parseAbiItem(
             'event PayeeRegistered(address indexed owner, address indexed payee, string name)',
           ),
@@ -338,7 +455,7 @@ class LiveProvider implements VaultDataProvider {
           toBlock: t,
         }),
         this.client.getLogs({
-          address: this.cfg.registryAddress,
+          address: registry,
           event: parseAbiItem(
             'event PayeeUpdated(address indexed owner, address indexed payee, string oldName, string newName)',
           ),
@@ -347,7 +464,7 @@ class LiveProvider implements VaultDataProvider {
           toBlock: t,
         }),
         this.client.getLogs({
-          address: this.cfg.registryAddress,
+          address: registry,
           event: parseAbiItem(
             'event PayeeRemoved(address indexed owner, address indexed payee, string oldName)',
           ),
@@ -412,7 +529,7 @@ class LiveProvider implements VaultDataProvider {
     // registry still holds the name right now).
     const entries: Array<RegisteredPayee | null> = await Promise.all(
       [...names.values()].map(async (v) => {
-        const liveName = await this.getPayeeName(owner, v.payee);
+        const liveName = await this.getRegistryName(registry, owner, v.payee);
         if (!liveName) return null;
         return { payee: v.payee, name: liveName, txHash: v.txHash } satisfies RegisteredPayee;
       }),
@@ -420,12 +537,39 @@ class LiveProvider implements VaultDataProvider {
     return entries.filter((e): e is RegisteredPayee => e !== null);
   }
 
-  async listV2Sessions(owner: Address): Promise<Session[]> {
-    if (!this.v2Configured) return [];
-    const { from, to } = await this.v2ScanRange();
+  async listRegisteredPayees(owner: Address): Promise<RegisteredPayee[]> {
+    if (!this.registryConfigured) return [];
+    return this.listRegistryPayees(
+      this.cfg.registryAddress,
+      this.cfg.v2DeploymentBlock,
+      owner,
+    );
+  }
+
+  async listRegisteredPayeesV3(owner: Address): Promise<RegisteredPayee[]> {
+    if (!this.registryV3Configured) return [];
+    return this.listRegistryPayees(
+      this.cfg.registryV3Address,
+      this.cfg.v3DeploymentBlock,
+      owner,
+    );
+  }
+
+  /**
+   * Sessions on a CoP vault (v2 or v3 — same Session struct, same
+   * SessionCreated event), with per-payee cap + spend per payee.
+   */
+  private async listCoPVaultSessions(
+    vault: Address,
+    registry: Address,
+    fromBlock: bigint | undefined,
+    owner: Address,
+    version: 2 | 3,
+  ): Promise<Session[]> {
+    const { from, to } = await this.scanRangeFrom(fromBlock);
     const created = await chunked(from, to, (f, t) =>
       this.client.getLogs({
-        address: this.cfg.vaultV2Address,
+        address: vault,
         event: parseAbiItem(
           'event SessionCreated(uint256 indexed sessionId, address indexed owner, address indexed sessionKey, uint256 perTxLimit, uint256 dailyLimit, uint256 perPayeeCap, uint64 expiry)',
         ),
@@ -440,13 +584,13 @@ class LiveProvider implements VaultDataProvider {
         const id = log.args.sessionId ?? 0n;
         const [s, remaining] = await Promise.all([
           this.client.readContract({
-            address: this.cfg.vaultV2Address,
+            address: vault,
             abi: VAULT_V2_ABI,
             functionName: 'getSession',
             args: [id],
           }),
           this.client.readContract({
-            address: this.cfg.vaultV2Address,
+            address: vault,
             abi: VAULT_V2_ABI,
             functionName: 'remainingDailyAllowance',
             args: [id],
@@ -456,18 +600,18 @@ class LiveProvider implements VaultDataProvider {
           [...s.payees].map(async (payee) => {
             const [spent, payeeRemaining, name] = await Promise.all([
               this.client.readContract({
-                address: this.cfg.vaultV2Address,
+                address: vault,
                 abi: VAULT_V2_ABI,
                 functionName: 'spentPerPayee',
                 args: [id, payee],
               }),
               this.client.readContract({
-                address: this.cfg.vaultV2Address,
+                address: vault,
                 abi: VAULT_V2_ABI,
                 functionName: 'remainingPayeeAllowance',
                 args: [id, payee],
               }),
-              this.getPayeeName(owner, payee),
+              this.getRegistryName(registry, owner, payee),
             ]);
             return {
               payee,
@@ -489,7 +633,7 @@ class LiveProvider implements VaultDataProvider {
           expiry: Number(s.expiry),
           revoked: s.revoked,
           remainingDaily: remaining,
-          version: 2 as const,
+          version,
           payeeSpend,
         } satisfies Session;
       }),
@@ -497,16 +641,48 @@ class LiveProvider implements VaultDataProvider {
     return sessions.sort((a, b) => (a.id > b.id ? -1 : 1));
   }
 
-  async listV2Payments(owner: Address): Promise<Payment[]> {
+  async listV2Sessions(owner: Address): Promise<Session[]> {
     if (!this.v2Configured) return [];
-    const sessions = await this.listV2Sessions(owner);
+    return this.listCoPVaultSessions(
+      this.cfg.vaultV2Address,
+      this.cfg.registryAddress,
+      this.cfg.v2DeploymentBlock,
+      owner,
+      2,
+    );
+  }
+
+  async listV3Sessions(owner: Address): Promise<Session[]> {
+    if (!this.v3Configured) return [];
+    return this.listCoPVaultSessions(
+      this.cfg.vaultV3Address,
+      this.cfg.registryV3Address,
+      this.cfg.v3DeploymentBlock,
+      owner,
+      3,
+    );
+  }
+
+  /**
+   * Payments on a CoP vault (v2 or v3), enriched with the registered
+   * payee name. Every payment that reached PaymentExecuted passed the
+   * name check (the vault reverts before emitting otherwise).
+   */
+  private async listCoPVaultPayments(
+    vault: Address,
+    registry: Address,
+    fromBlock: bigint | undefined,
+    owner: Address,
+    version: 2 | 3,
+  ): Promise<Payment[]> {
+    const sessions = await this.listCoPVaultSessions(vault, registry, fromBlock, owner, version);
     if (sessions.length === 0) return [];
     const ids = sessions.map((s) => s.id);
-    const { from, to } = await this.v2ScanRange();
+    const { from, to } = await this.scanRangeFrom(fromBlock);
 
     const logs = await chunked(from, to, (f, t) =>
       this.client.getLogs({
-        address: this.cfg.vaultV2Address,
+        address: vault,
         event: parseAbiItem(
           'event PaymentExecuted(uint256 indexed sessionId, address indexed payee, uint256 amount, uint256 timestamp)',
         ),
@@ -516,26 +692,91 @@ class LiveProvider implements VaultDataProvider {
       }),
     );
 
-    // Every payment that reached PaymentExecuted passed the name check
-    // (the vault reverts before emitting otherwise) — enrich with the
-    // registered name so the UI can show what was verified.
     const payments = await Promise.all(
       logs.map(async (l) => {
         const payee = (l.args.payee ??
           '0x0000000000000000000000000000000000000000') as Address;
-        const name = await this.getPayeeName(owner, payee);
+        const name = await this.getRegistryName(registry, owner, payee);
         return {
           sessionId: l.args.sessionId ?? 0n,
           payee,
           amount: l.args.amount ?? 0n,
           timestamp: Number(l.args.timestamp ?? 0n),
           txHash: l.transactionHash,
-          version: 2 as const,
+          version,
           payeeName: name || undefined,
           nameVerified: true,
         } satisfies Payment;
       }),
     );
     return payments.sort((a, b) => b.timestamp - a.timestamp);
+  }
+
+  async listV2Payments(owner: Address): Promise<Payment[]> {
+    if (!this.v2Configured) return [];
+    return this.listCoPVaultPayments(
+      this.cfg.vaultV2Address,
+      this.cfg.registryAddress,
+      this.cfg.v2DeploymentBlock,
+      owner,
+      2,
+    );
+  }
+
+  async listV3Payments(owner: Address): Promise<Payment[]> {
+    if (!this.v3Configured) return [];
+    return this.listCoPVaultPayments(
+      this.cfg.vaultV3Address,
+      this.cfg.registryV3Address,
+      this.cfg.v3DeploymentBlock,
+      owner,
+      3,
+    );
+  }
+
+  async getV3EndState(owner: Address, payee: Address): Promise<V3EndState> {
+    if (!this.v3Configured) {
+      return {
+        nextSessionId: 0n,
+        ownerVaultBalance: 0n,
+        vaultTokenBalance: 0n,
+        ownerWallet: 0n,
+        payeeWallet: 0n,
+      };
+    }
+    const [nextSessionId, ownerVaultBalance, vaultTokenBalance, ownerWallet, payeeWallet] =
+      await Promise.all([
+        this.client.readContract({
+          address: this.cfg.vaultV3Address,
+          abi: VAULT_V3_ABI,
+          functionName: 'nextSessionId',
+          args: [],
+        }),
+        this.client.readContract({
+          address: this.cfg.vaultV3Address,
+          abi: VAULT_V3_ABI,
+          functionName: 'balances',
+          args: [owner],
+        }),
+        this.client.readContract({
+          address: this.cfg.tusd8Address,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [this.cfg.vaultV3Address],
+        }),
+        this.client.readContract({
+          address: this.cfg.tusd8Address,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [owner],
+        }),
+        this.client.readContract({
+          address: this.cfg.tusd8Address,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [payee],
+        }),
+      ]);
+    return { nextSessionId, ownerVaultBalance, vaultTokenBalance, ownerWallet, payeeWallet };
   }
 }

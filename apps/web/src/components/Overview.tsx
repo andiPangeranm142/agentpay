@@ -141,17 +141,18 @@ export function Overview({ config, provider, onNavigate }: Props) {
 
       {loading && <p className="muted">Loading vault data…</p>}
       <div className="card">
-        <div className="card-label">New in v2 — Confirmation of Payee</div>
+        <div className="card-label">New in v3 — Case-insensitive Confirmation of Payee</div>
         <p>
-          The v2 vault checks the payee&apos;s <strong>name</strong> against the
-          owner&apos;s registry before paying: a typo&apos;d name or a lookalike
-          address is rejected on-chain. Live on testnet — a wrong-name payment
-          and a lookalike payment were both reverted, while the name-verified
-          payment to “Sari Bakery” went through.
+          The v3 vault checks the payee&apos;s <strong>name</strong> against the
+          owner&apos;s registry before paying — <strong>case-insensitively</strong>:
+          “kedai kopi senja” matches a payee registered as “Kedai Kopi Senja”, while a
+          wrong name or a lookalike address is still rejected on-chain. V3
+          also adds a reverse lookup (<code>addressOf</code>), per-owner name
+          uniqueness, and fail-fast session creation.
         </p>
         <div className="card-actions">
           <button className="btn btn-primary" onClick={() => onNavigate('payees')}>
-            See verified payees &amp; blocked payments
+            See v3 payees, reverse lookup &amp; blocked actions
           </button>
         </div>
       </div>

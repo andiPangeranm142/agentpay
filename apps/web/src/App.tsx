@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createConfig, http, WagmiProvider } from 'wagmi';
 import { injected } from 'wagmi/connectors';
-import { loadConfig, type AppConfig } from './config';
+import { loadConfig, type AppConfig, ZERO_ADDRESS } from './config';
 import { aevumTestnet } from './lib/chain';
 import { createProvider, type VaultDataProvider } from './lib/provider';
 import { ConnectButton } from './components/ConnectButton';
@@ -19,17 +19,21 @@ const queryClient = new QueryClient({
 
 type Tab = 'overview' | 'deposit' | 'sessions' | 'activity' | 'payees';
 
+// v3 (Payees · CoP) is the MAIN tab: first in the nav and the landing
+// tab — it is the current version of AgentPay. The v1 vault tabs
+// (Overview / Deposit / Sessions / Activity) remain for the original
+// vault; v2 lives as labelled history inside the Payees tab.
 const TABS: Array<{ id: Tab; label: string }> = [
+  { id: 'payees', label: 'Payees · CoP (v3)' },
   { id: 'overview', label: 'Overview' },
   { id: 'deposit', label: 'Deposit / Withdraw' },
   { id: 'sessions', label: 'Sessions' },
   { id: 'activity', label: 'Activity' },
-  { id: 'payees', label: 'Payees · CoP (v2)' },
 ];
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>('payees');
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +127,9 @@ export default function App() {
           <footer className="app-footer">
             <span>
               {config.mode === 'live'
-                ? `Live on Aevum Testnet · vault ${config.vaultAddress.slice(0, 10)}… (source: ${config.source})`
+                ? config.vaultV3Address !== ZERO_ADDRESS
+                  ? `Live on Aevum Testnet · current: v3 vault ${config.vaultV3Address.slice(0, 10)}… · v1/v2 in history (source: ${config.source})`
+                  : `Live on Aevum Testnet · vault ${config.vaultAddress.slice(0, 10)}… (source: ${config.source})`
                 : 'Demo mode · no contracts configured'}
             </span>
             <a href={config.explorerUrl} target="_blank" rel="noreferrer">
