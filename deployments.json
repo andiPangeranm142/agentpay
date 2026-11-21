@@ -1,1 +1,23 @@
-{"AgentPayVault":"0x4079f1A0f75458997DCd1A768170b96086276b47","chainId":44005,"deployTx":"0xcef3c2f73f90af7cfa914ea6d4005523c666e380be11aa53c601059f744ccf5d","deployedAt":"2026-11-20","deployer":"0xf2Cc349a7629Ef20110621f713A7153306b05651","deploymentBlock":"3648790","explorerUrl":"https://explorer-test.qday.info","network":"Aevum Testnet","notes":"End-to-end smoke test (session 0, revoked after test): deposit 0.5 tUSD8, payment 0.05 tUSD8 to 0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd, reverts verified for over-perTx, non-session-key and post-revoke calls, 0.45 tUSD8 withdrawn.","rpcUrl":"https://rpc-test.qday.info","sourceVerified":true,"tUSD8":"0x456569838f1d43009A91ebA4263147Afd7233483"}
+{
+  "AgentPayVault": "0x4079f1A0f75458997DCd1A768170b96086276b47",
+  "AgentPayVaultV2": "0xE68518A95cbbBD75f521C86688770a98140fE06F",
+  "PayeeRegistry": "0x5e1c3E6dcAfe32Df42B80277141b9F87C5FF6053",
+  "chainId": 44005,
+  "deployTx": "0xcef3c2f73f90af7cfa914ea6d4005523c666e380be11aa53c601059f744ccf5d",
+  "deployedAt": "2026-11-20",
+  "deployer": "0xf2Cc349a7629Ef20110621f713A7153306b05651",
+  "deploymentBlock": "3648790",
+  "explorerUrl": "https://explorer-test.qday.info",
+  "network": "Aevum Testnet",
+  "notes": "End-to-end smoke test (session 0, revoked after test): deposit 0.5 tUSD8, payment 0.05 tUSD8 to 0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd, reverts verified for over-perTx, non-session-key and post-revoke calls, 0.45 tUSD8 withdrawn.",
+  "rpcUrl": "https://rpc-test.qday.info",
+  "sourceVerified": true,
+  "tUSD8": "0x456569838f1d43009A91ebA4263147Afd7233483",
+  "v2DeployTxRegistry": "0xe6727aea837fa2a6efb36740c9be664528f344426e17c376b1f62e72716828e8",
+  "v2DeployTxVault": "0xd6418c855719d00fbe777b5f325f5a5b67d489c81c5bcb6ec6a77563058d0bbb",
+  "v2DeployedAt": "2026-11-21",
+  "v2DeploymentBlockRegistry": "3730439",
+  "v2DeploymentBlockVault": "3730440",
+  "v2Notes": "Confirmation of Payee: per-owner payee-name registry + vault v2 that reverts on name mismatch (PayeeNameMismatch) or unregistered payee (PayeeNotRegistered), plus per-payee spend cap. Live E2E 21 Nov 2026: deposit 0.40 tUSD8, registered 'Sari Bakery' for 0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd, payment 0.05 tUSD8 with matching name OK, wrong-name and lookalike payments reverted on-chain (status 0x0), sessions revoked, 0.35 tUSD8 withdrawn.",
+  "v2SourceVerified": true
+}
