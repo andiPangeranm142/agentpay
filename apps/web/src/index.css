@@ -223,6 +223,7 @@ h3 { font-size: 1rem; margin: 0; }
 }
 .badge-ok { background: var(--ok-soft); color: var(--ok); }
 .badge-warn { background: var(--warn-soft); color: var(--warn); }
+.badge-error { background: var(--danger-soft); color: var(--danger); }
 .badge-muted { background: var(--surface-muted); color: var(--muted); }
 
 /* --- Buttons --- */
@@ -386,6 +387,30 @@ input:disabled { background: var(--surface-muted); color: var(--muted); }
 .summary-head h2 { margin: 0; }
 
 .payment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+
+/* Rejected (reverted) payments: red-tinted row so they read as blocked. */
+.payment-row-rejected { border-color: #f0b6b6; background: #fffafa; }
+
+/* Scrollable tables (payee list, recorded run) — safe at 390px. */
+.table-wrap { overflow-x: auto; padding: 0; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.data-table thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
 .payment-row {
   display: flex;
   justify-content: space-between;

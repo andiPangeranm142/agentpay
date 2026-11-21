@@ -11,18 +11,20 @@ import { Overview } from './components/Overview';
 import { DepositWithdraw } from './components/DepositWithdraw';
 import { Sessions } from './components/Sessions';
 import { Activity } from './components/Activity';
+import { Payees } from './components/Payees';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10_000 } },
 });
 
-type Tab = 'overview' | 'deposit' | 'sessions' | 'activity';
+type Tab = 'overview' | 'deposit' | 'sessions' | 'activity' | 'payees';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'overview', label: 'Overview' },
   { id: 'deposit', label: 'Deposit / Withdraw' },
   { id: 'sessions', label: 'Sessions' },
   { id: 'activity', label: 'Activity' },
+  { id: 'payees', label: 'Payees · CoP (v2)' },
 ];
 
 export default function App() {
@@ -115,6 +117,7 @@ export default function App() {
             {tab === 'deposit' && <DepositWithdraw config={config} provider={provider} />}
             {tab === 'sessions' && <Sessions config={config} provider={provider} />}
             {tab === 'activity' && <Activity config={config} provider={provider} />}
+            {tab === 'payees' && <Payees config={config} provider={provider} />}
           </main>
 
           <footer className="app-footer">

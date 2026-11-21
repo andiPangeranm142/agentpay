@@ -23,12 +23,20 @@ export interface AppConfig {
   mode: AppMode;
   /** Zero address in mock mode. */
   vaultAddress: Address;
+  /** v2 vault (Confirmation of Payee). Zero address when not configured. */
+  vaultV2Address: Address;
+  /** PayeeRegistry (v2). Zero address when not configured. */
+  registryAddress: Address;
+  /** Deployer / demo owner, when known (used to show demo v2 data with no wallet). */
+  deployerAddress?: Address;
   tusd8Address: Address;
   rpcUrl: string;
   explorerUrl: string;
   chainId: number;
   /** Block the vault was deployed at, when known (narrows event scans). */
   deploymentBlock?: bigint;
+  /** Block the v2 contracts were deployed at, when known. */
+  v2DeploymentBlock?: bigint;
   /** Where the live addresses came from, for the footer/debug. */
   source: 'deployments.json' | 'env' | 'defaults (mock)';
 }
@@ -83,22 +91,39 @@ export async function loadConfig(): Promise<AppConfig> {
   const vaultFromFile = deployments
     ? pickAddress(deployments, ['AgentPayVault', 'vault', 'vaultAddress', 'agentPayVault'])
     : undefined;
+  const vaultV2FromFile = deployments
+    ? pickAddress(deployments, ['AgentPayVaultV2', 'vaultV2', 'vaultV2Address'])
+    : undefined;
+  const registryFromFile = deployments
+    ? pickAddress(deployments, ['PayeeRegistry', 'registry', 'registryAddress'])
+    : undefined;
+  const deployerFromFile = deployments
+    ? pickAddress(deployments, ['deployer', 'deployerAddress', 'owner'])
+    : undefined;
   const tusd8FromFile = deployments
     ? pickAddress(deployments, ['tUSD8', 'TUSD8', 'tusd8', 'tusd8Address'])
     : undefined;
-  const deploymentBlock =
-    deployments && typeof deployments.deploymentBlock === 'string'
-      ? (() => {
-          try {
-            return BigInt(deployments.deploymentBlock);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+  const parseBlock = (v: unknown): bigint | undefined => {
+    if (typeof v !== 'string') return undefined;
+    try {
+      return BigInt(v);
+    } catch {
+      return undefined;
+    }
+  };
+  const deploymentBlock = deployments ? parseBlock(deployments.deploymentBlock) : undefined;
+  // Registry deployed one block before the v2 vault; scan from the earlier one.
+  const v2DeploymentBlock = deployments
+    ? (parseBlock(deployments.v2DeploymentBlockRegistry) ??
+      parseBlock(deployments.v2DeploymentBlockVault))
+    : undefined;
 
   const vaultAddress =
     vaultFromFile ?? asAddress(env.VITE_VAULT_ADDRESS) ?? ZERO_ADDRESS;
+  const vaultV2Address =
+    vaultV2FromFile ?? asAddress(env.VITE_VAULT_V2_ADDRESS) ?? ZERO_ADDRESS;
+  const registryAddress =
+    registryFromFile ?? asAddress(env.VITE_REGISTRY_ADDRESS) ?? ZERO_ADDRESS;
   const tusd8Address =
     tusd8FromFile ?? asAddress(env.VITE_TUSD8_ADDRESS) ?? DEFAULT_TUSD8_ADDRESS;
   const rpcUrl =
@@ -114,11 +139,15 @@ export async function loadConfig(): Promise<AppConfig> {
   return {
     mode: live ? 'live' : 'mock',
     vaultAddress,
+    vaultV2Address,
+    registryAddress,
+    deployerAddress: deployerFromFile,
     tusd8Address,
     rpcUrl,
     explorerUrl,
     chainId: CHAIN_ID,
     deploymentBlock,
+    v2DeploymentBlock,
     source: live
       ? vaultFromFile
         ? 'deployments.json'

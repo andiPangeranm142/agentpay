@@ -15,6 +15,16 @@ instantly, with every payment leaving a verifiable on-chain audit trail.
 - Live contract: [`AgentPayVault`
   `0x4079f1A0f75458997DCd1A768170b96086276b47`](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47)
   (Aevum testnet, source-verified, deployed 20 November 2026)
+- **New in v2 — Confirmation of Payee:**
+  [`PayeeRegistry`
+  `0x5e1c3E6dcAfe32Df42B80277141b9F87C5FF6053`](https://explorer-test.qday.info/address/0x5e1c3e6dcafe32df42b80277141b9f87c5ff6053)
+  +
+  [`AgentPayVaultV2`
+  `0xE68518A95cbbBD75f521C86688770a98140fE06F`](https://explorer-test.qday.info/address/0xE68518A95cbbBD75f521C86688770a98140fE06F)
+  (both source-verified, deployed 21 November 2026) — the vault now
+  checks the payee's *name* against the owner's registry before paying,
+  and each session caps spending per payee. See
+  [v2 — Confirmation of Payee](#v2--confirmation-of-payee).
 - Challenge: <https://qday.io/builder-challenge> ·
   <https://dorahacks.io/hackathon/qday/detail>
 
@@ -47,6 +57,16 @@ AgentPay splits **money** from **permission**:
 - **Revocation is instant and on-chain.** `revokeSession` takes effect
   in the next block; the agent's next payment reverts with
   `SessionIsRevoked`.
+- **v2 — Confirmation of Payee.** Before a v2 payment moves any tUSD8,
+  the vault checks the payee's name against the owner's registry: the
+  agent must pass the exact registered name for the payee address. A
+  typo'd name reverts with `PayeeNameMismatch`; an address with no
+  registered name — e.g. a lookalike address with one character
+  changed — reverts with `PayeeNotRegistered`. Names are per-owner,
+  exact and case-sensitive, and the session key can never rename a
+  payee. V2 sessions also carry a **per-payee spend cap**: a cumulative
+  limit per payee over the session's life, on top of the per-tx and
+  daily limits.
 - **Every payment is auditable.** Each payment emits a
   `PaymentExecuted` event with the session id, payee, amount, and
   timestamp, readable from the explorer or the audit reader in this
@@ -114,7 +134,9 @@ All activity is on **QDay Aevum Testnet** — chain ID **44005**
 
 | Contract / token | Address | Explorer |
 | --- | --- | --- |
-| `AgentPayVault` | `0x4079f1A0f75458997DCd1A768170b96086276b47` | [explorer](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47) |
+| `AgentPayVault` (v1) | `0x4079f1A0f75458997DCd1A768170b96086276b47` | [explorer](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47) |
+| `PayeeRegistry` (v2) | `0x5e1c3E6dcAfe32Df42B80277141b9F87C5FF6053` | [explorer](https://explorer-test.qday.info/address/0x5e1c3e6dcafe32df42b80277141b9f87c5ff6053) |
+| `AgentPayVaultV2` (v2) | `0xE68518A95cbbBD75f521C86688770a98140fE06F` | [explorer](https://explorer-test.qday.info/address/0xE68518A95cbbBD75f521C86688770a98140fE06F) |
 | tUSD8 (ERC-20, 6 decimals) | `0x456569838f1d43009A91ebA4263147Afd7233483` | [explorer](https://explorer-test.qday.info/address/0x456569838f1d43009A91ebA4263147Afd7233483) |
 | QDayFaucet | `0xE5074CBbd046AFb491EB8692abD6cF7ECCC6dEE5` | [explorer](https://explorer-test.qday.info/address/0xE5074CBbd046AFb491EB8692abD6cF7ECCC6dEE5) |
 | Deployer / vault owner (test wallet) | `0xf2Cc349a7629Ef20110621f713A7153306b05651` | [explorer](https://explorer-test.qday.info/address/0xf2Cc349a7629Ef20110621f713A7153306b05651) |
@@ -133,6 +155,22 @@ Deployment details (20 November 2026):
 - The dashboard reads these addresses from [`deployments.json`](./deployments.json)
   (also copied to `apps/web/public/deployments.json`, so the built
   static site runs in live mode with no rebuild).
+
+Deployment details (21 November 2026, v2):
+
+- PayeeRegistry deploy transaction:
+  [`0xe6727aea…`](https://explorer-test.qday.info/tx/0xe6727aea837fa2a6efb36740c9be664528f344426e17c376b1f62e72716828e8),
+  block **3,730,439**, gas 682,015.
+- AgentPayVaultV2 deploy transaction:
+  [`0xd6418c85…`](https://explorer-test.qday.info/tx/0xd6418c855719d00fbe777b5f325f5a5b67d489c81c5bcb6ec6a77563058d0bbb),
+  block **3,730,440**, gas 1,260,072. Constructor args: tUSD8 +
+  PayeeRegistry address above.
+- Total v2 deploy cost ≈ 0.00194 tQDAY at 1 gwei. Both contracts are
+  **source-verified** (`forge verify-check` returned "Pass - Verified"
+  for both; compiler `v0.8.24+commit.e11b9ed9`).
+- The v1 vault was **not touched** by the v2 deployment — v1 sessions,
+  balances, and history are unchanged; v2 is a separate vault with its
+  own session ids (starting again at 0).
 
 ## Proven on testnet — what actually ran
 
@@ -189,6 +227,62 @@ limits were never breached: the duplicate payment was still inside the
 session's per-tx and daily limits, which is exactly the defence-in-depth
 the design intends.
 
+## v2 — Confirmation of Payee
+
+### How the name check works
+
+`AgentPayVaultV2.pay(sessionId, payee, amount, expectedName)` reads
+`registry.nameOf(sessionOwner, payee)` — the name **the session's
+owner** registered for that payee, in the owner's own namespace. An
+empty stored name reverts `PayeeNotRegistered(payee)`; otherwise the
+vault compares `keccak256(expectedName)` with the stored name's hash
+and a mismatch reverts `PayeeNameMismatch(expectedHash,
+registeredHash)`. Comparison is exact and case-sensitive; names are
+capped at 64 bytes. The session key can never register, update, or
+remove a name — only the owner can, in their own namespace.
+
+Check order inside `pay`: session exists → caller is the session key
+→ not revoked → not expired → payee on allowlist → amount > 0 →
+within per-tx limit → **Confirmation of Payee** → per-payee cap →
+daily limit → owner balance. The per-payee cap (`perPayeeCap`, set at
+session creation, must be ≥ the per-tx limit) is cumulative per
+(session, payee) over the session's life, tracked in `spentPerPayee`;
+over-cap reverts `ExceedsPerPayeeCap`. View helper:
+`remainingPayeeAllowance(sessionId, payee)`.
+
+### Proven on testnet — v2 end-to-end run (21 November 2026)
+
+Everything below happened on Aevum testnet on 21 November 2026 and is
+verifiable from the explorer links. Session parameters: per-tx limit
+0.10 tUSD8, daily limit 0.20 tUSD8, per-payee cap 0.15 tUSD8, expiry
++24h. The lookalike address used is
+`0xc592286d027E701A5bb0681675C1F4d80d2Ee8Ce` — the real payee's
+address with the last hex character changed.
+
+| # | Step | Transaction | Block | Result |
+| --- | --- | --- | --- | --- |
+| 1 | Deposit 0.40 tUSD8 into the v2 vault | [`0x08951d79…`](https://explorer-test.qday.info/tx/0x08951d792055d20394e2c5b1b94d9fd2ddafa9dc193906438680d1f65772a75a) | 3,730,490 | ✅ |
+| 2 | Register payee "Sari Bakery" → `0xc592…Ee8Cd` | [`0xaf6590f4…`](https://explorer-test.qday.info/tx/0xaf6590f401888038b5d6e0c1b3a732ff7e1d2ddc98e1b15f059f51e87805765d) | 3,730,496 | ✅ |
+| 3 | Create v2 session 0 (limits above) | [`0x3c115ff3…`](https://explorer-test.qday.info/tx/0x3c115ff3899f5aec123b696df7862b849adeacd860386e3aac6d7bd8f1b14a6d) | 3,730,502 | ✅ |
+| 4 | Pay 0.05 tUSD8, name "Sari Bakery" | [`0xad45efe0…`](https://explorer-test.qday.info/tx/0xad45efe0db4e36285a608386e6e4fa520b0ffda6ff4db3bba9be3f051ecab2a5) | 3,730,507 | ✅ name verified |
+| 5 | Revoke sessions 0–1, withdraw 0.35 tUSD8 | [withdraw `0xeb5b613b…`](https://explorer-test.qday.info/tx/0xeb5b613bdc879d7fd214fc8c170afad7886f6251aadfcc3e46fbbb3a92975be7) | 3,730,535 | ✅ |
+| 6 | Pay 0.05, wrong name "Sari Bakrey" (session 2, created for the on-chain proof) | [`0x10f6ab90…`](https://explorer-test.qday.info/tx/0x10f6ab903215a582825ddd30c6a4bc68c8976f0ed504d7cc5cfa8bd64adbfd04) | 3,730,568 | ❌ reverted on-chain (status 0x0), `PayeeNameMismatch` |
+| 7 | Pay 0.05 to lookalike `…Ee8Ce`, name "Sari Bakery" (session 3) | [`0x5d3e1dc9…`](https://explorer-test.qday.info/tx/0x5d3e1dc927b9d24f75782c6b45db5666e8381bbe7d84a1edb0538a2e432bcb58) | 3,730,575 | ❌ reverted on-chain (status 0x0), `PayeeNotRegistered` |
+| 8 | Revoke sessions 2–3 | — | 3,730,582 / 3,730,587 | ✅ |
+
+The two rejections were forced on-chain with an explicit gas limit
+(`cast` refuses to broadcast a call it knows will revert, so the first
+attempts died at gas estimation); the revert reasons were confirmed by
+`cast run` replay of the receipts. End state after the run (verified
+by `cast call`, 21 Nov 2026): owner **4.65 tUSD8** (0.40 deposited,
+0.05 paid, 0.35 withdrawn), payee **0.35 tUSD8** (only the verified
+payment arrived), v2 vault balance **0**, `spentPerPayee(session 0,
+payee)` **0.05**, all 4 v2 sessions revoked. Balances keep changing as
+live testing continues — check the explorer links above for current
+values. The dashboard's **Payees · CoP (v2)** tab shows the registered
+payees live from the registry, the name-verified payment, and both
+rejections with their explorer receipts.
+
 ## Demo
 
 - **Live deployment:** the contract above, plus the dashboard in live
@@ -209,13 +303,17 @@ agentpay/
 ├── deployments.json          # live deployment (vault, token, tx, block)
 ├── contracts/                # Foundry project (Solidity 0.8.24, Shanghai EVM)
 │   ├── src/
-│   │   ├── AgentPayVault.sol         # the vault (one contract)
+│   │   ├── AgentPayVault.sol         # the vault (v1, one contract)
+│   │   ├── AgentPayVaultV2.sol       # v2 vault: Confirmation of Payee + per-payee cap
+│   │   ├── PayeeRegistry.sol         # v2: per-owner payee-name registry
 │   │   └── mocks/MockUSD8.sol        # 6-decimal mock tUSD8 (local tests only)
 │   ├── test/
 │   │   ├── AgentPayVault.t.sol       # unit + fuzz tests (53 tests)
+│   │   ├── AgentPayVaultV2.t.sol     # v2 unit + fuzz tests (38 tests)
 │   │   └── fork/AevumFork.t.sol      # fork tests vs real tUSD8 (3 tests)
 │   ├── script/Deploy.s.sol           # deploy script (real tUSD8 on Aevum/fork,
 │   │                                 # MockUSD8 on local anvil only)
+│   ├── script/DeployV2.s.sol         # deploy script for PayeeRegistry + AgentPayVaultV2
 │   ├── tools/check-shanghai.mjs      # fails the build on Cancun-only opcodes
 │   ├── Makefile                      # build / test / fork / deploy shortcuts
 │   └── README.md                     # contract details + Aevum rules
@@ -227,7 +325,7 @@ agentpay/
 │   │   ├── schedules.example.json    # bill schedule template
 │   │   └── README.md         # agent details, skip reasons, layout
 │   └── web/                  # owner dashboard (Vite + React + TypeScript + wagmi/viem)
-│       ├── src/              # Overview / DepositWithdraw / Sessions / Activity
+│       ├── src/              # Overview / DepositWithdraw / Sessions / Activity / Payees (v2)
 │       ├── public/deployments.json   # live deployment (drives live mode)
 │       └── README.md         # dashboard details, mock vs live mode
 └── docs/
@@ -310,7 +408,11 @@ npm run preview  # serve the production build locally
 In live mode you can: connect a wallet (Aevum testnet, chain 44005),
 deposit tUSD8 (approve + deposit), create a session (allowlist editor,
 per-tx + daily limits, expiry), watch the activity log, revoke a
-session, and withdraw.
+session, and withdraw. The **Payees · CoP (v2)** tab reads the
+PayeeRegistry live: registered payee names, name-verified v2 payments,
+per-payee spend vs cap per session, and the two on-chain rejections
+from the recorded testnet run — with no wallet connected it shows the
+demo owner's namespace, clearly labelled.
 
 ## Run against a local fork of Aevum (real tUSD8, no testnet funds)
 
@@ -418,6 +520,15 @@ make deploy-aevum ACCOUNT=agentpay-deployer
 
 # 4. Record the deployed address, deploy tx, block, and commit hash in
 #    deployments.json and in the "Live deployment" section above.
+
+# 5. (v2) Deploy the PayeeRegistry + AgentPayVaultV2 the same way:
+cd contracts
+forge script script/DeployV2.s.sol --rpc-url https://rpc-test.qday.info \
+  --broadcast --legacy --account agentpay-deployer
+# Record both addresses + deploy txs in deployments.json
+# (AgentPayVaultV2, PayeeRegistry, v2DeployTxVault, v2DeployTxRegistry,
+# v2DeploymentBlockVault, v2DeploymentBlockRegistry) and copy it to
+# apps/web/public/deployments.json so the dashboard's Payees tab goes live.
 ```
 
 ## Configuration
@@ -473,6 +584,8 @@ periods are **not** back-paid.
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `VITE_VAULT_ADDRESS` | No | — | Deployed `AgentPayVault`. Leave empty for mock mode. `public/deployments.json` overrides this |
+| `VITE_VAULT_V2_ADDRESS` | No | — | Deployed `AgentPayVaultV2` (Confirmation of Payee). `public/deployments.json` overrides this |
+| `VITE_REGISTRY_ADDRESS` | No | — | Deployed `PayeeRegistry`. `public/deployments.json` overrides this |
 | `VITE_TUSD8_ADDRESS` | No | `0x456569838f1d43009A91ebA4263147Afd7233483` | tUSD8 |
 | `VITE_RPC_URL` | No | `https://rpc-test.qday.info` | Aevum testnet RPC |
 | `VITE_EXPLORER_URL` | No | `https://explorer-test.qday.info` | Aevum testnet explorer |
@@ -579,6 +692,35 @@ reasons): `ZeroAmount`, `InvalidSessionKey`, `InvalidPayee`,
 `PayeeNotAllowed`, `ExceedsPerTxLimit`, `ExceedsDailyLimit`,
 `InsufficientBalance`.
 
+### v2 — `PayeeRegistry` + `AgentPayVaultV2`
+
+`AgentPayVaultV2` (`contracts/src/AgentPayVaultV2.sol`) keeps every
+v1 behaviour and adds the name check plus the per-payee cap. Only the
+differences from v1 are listed here; `deposit`, `withdraw`,
+`revokeSession`, `balances`, `nextSessionId`, `isPayeeAllowed`, and
+`remainingDailyAllowance` behave as in v1.
+
+| Function | Description |
+| --- | --- |
+| `PayeeRegistry.registerPayee(address payee, string name)` | Register a name (1–64 bytes) for a payee in the caller's own namespace. Emits `PayeeRegistered`. Reverts `PayeeAlreadyRegistered` if the payee already has a name. |
+| `PayeeRegistry.updatePayee(address payee, string newName)` | Change a registered name. Emits `PayeeUpdated` (old + new name). |
+| `PayeeRegistry.removePayee(address payee)` | Remove a payee's name. Emits `PayeeRemoved`. Later payments to that payee revert `PayeeNotRegistered`. |
+| `PayeeRegistry.nameOf(address owner, address payee)` | Registered name (empty string when unregistered). |
+| `PayeeRegistry.isRegistered(address owner, address payee)` | Whether a name is registered. |
+| `PayeeRegistry.matchesName(address owner, address payee, string expectedName)` | Off-chain check helper: does `expectedName` match the registered name? |
+| `AgentPayVaultV2.createSession(address sessionKey, address[] payees, uint256 perTxLimit, uint256 dailyLimit, uint256 perPayeeCap, uint64 expiry)` | As v1, plus `perPayeeCap` (must be ≥ per-tx limit, else `InvalidPerPayeeCap`). `SessionCreated` gains the `perPayeeCap` field. |
+| `AgentPayVaultV2.pay(uint256 sessionId, address payee, uint256 amount, string expectedName)` | As v1, plus the Confirmation of Payee check: reverts `PayeeNotRegistered(payee)` when no name is registered, `PayeeNameMismatch(expectedHash, registeredHash)` on a name mismatch, and `ExceedsPerPayeeCap` when the payment would push the session's cumulative spend for that payee over its cap. |
+| `AgentPayVaultV2.spentPerPayee(uint256 sessionId, address payee)` | Cumulative amount paid to a payee under a session (public mapping). |
+| `AgentPayVaultV2.remainingPayeeAllowance(uint256 sessionId, address payee)` | How much the session may still pay that payee (`perPayeeCap − spentPerPayee`). |
+
+V2 `getSession` returns the v1 fields plus `perPayeeCap` (after
+`dailyLimit`). New v2 errors: `InvalidRegistry`,
+`InvalidPerPayeeCap`, `ExceedsPerPayeeCap`,
+`PayeeNotRegistered(address)`,
+`PayeeNameMismatch(bytes32, bytes32)`; registry errors:
+`EmptyName`, `NameTooLong`, `PayeeNotRegistered()`,
+`PayeeAlreadyRegistered()`.
+
 ## Security model
 
 - **Least privilege.** The session key can do exactly one thing: pay
@@ -588,6 +730,11 @@ reasons): `ZeroAmount`, `InvalidSessionKey`, `InvalidPayee`,
 - **Blast radius is capped.** The most a compromised session key can
   move is the daily limit, to allowlisted payees only — and only until
   the owner revokes it (one transaction) or it expires.
+- **Names stop spoofing (v2).** Even with a stolen session key, an
+  attacker cannot redirect a payment to a lookalike address or a
+  mistyped name: the vault reverts unless the name matches the owner's
+  registry exactly. And the per-payee cap bounds how much any single
+  payee can ever receive from a session.
 - **Owner key isolation.** The owner key never touches the agent host.
   The agent host holds only the session key, a test wallet with a
   little tQDAY for gas.
@@ -613,12 +760,12 @@ reasons): `ZeroAmount`, `InvalidSessionKey`, `InvalidPayee`,
 ## Testing
 
 All counts below were verified by running the suites on
-20 November 2026.
+21 November 2026.
 
 ```bash
 # Contracts (from contracts/)
 make build      # forge build + Shanghai opcode check
-make test       # unit + fuzz tests (no network) — 53 passed
+make test       # unit + fuzz tests (no network) — 91 passed (53 v1 + 38 v2)
 make test-fork  # fork tests vs real tUSD8 on Aevum — 3 passed
 make check      # build + unit + fork
 
@@ -632,9 +779,12 @@ npm run build   # typecheck + static build
 
 Every rule in the security model has a test: allowlist rejection,
 per-tx limit, daily limit (including UTC-day reset), expiry, revoke,
-non-agent caller, non-owner revoke, insufficient balance, and
+non-agent caller, non-owner revoke, insufficient balance,
 double-payment/idempotency (including the period-boundary case found
-in live testing).
+in live testing), and the v2 rules: name mismatch / unregistered
+payee reverts (including a fuzz test over non-matching names),
+per-payee cap enforcement and per-session isolation, and registry
+namespace isolation.
 
 ## Platform integration notes (for the judges)
 
@@ -680,6 +830,11 @@ Sources: <https://qday.io/build>,
 
 ## Roadmap
 
+- [x] **v2 — Confirmation of Payee.** Per-owner payee-name registry +
+      vault that reverts on name mismatch / unregistered payee, plus a
+      per-payee spend cap. Deployed and proven on testnet
+      21 November 2026 (see [v2 — Confirmation of
+      Payee](#v2--confirmation-of-payee)).
 - [ ] **v1.1 — Gasless agent payments.** EIP-3009
       `receiveWithAuthorization` + relayer (the starter kit's gasless
       checkout pattern), so the session key needs no tQDAY.
@@ -690,7 +845,7 @@ Sources: <https://qday.io/build>,
       facilitator once its endpoint is published.
 - [ ] **v1.4 — Keeper network.** Decentralised scheduling so bills are
       paid even if the owner's runner is offline.
-- [ ] **v2 — Multisig owner, multi-vault, ERC-8004 reputation.**
+- [ ] **v3 — Multisig owner, multi-vault, ERC-8004 reputation.**
       Reputation feedback for agents; mainnet when QDay mainnet
       launches (scheduled Q1 2027).
 

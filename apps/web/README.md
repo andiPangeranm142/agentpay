@@ -48,20 +48,29 @@ The app fetches it at runtime. Recognised keys (any of these spellings):
 ```json
 {
   "AgentPayVault": "0x…",
+  "AgentPayVaultV2": "0x…",
+  "PayeeRegistry": "0x…",
+  "deployer": "0x…",
   "tUSD8": "0x456569838f1d43009A91ebA4263147Afd7233483",
   "deploymentBlock": "123456",
+  "v2DeploymentBlockRegistry": "123456",
+  "v2DeploymentBlockVault": "123457",
   "rpcUrl": "https://rpc-test.qday.info",
   "explorerUrl": "https://explorer-test.qday.info"
 }
 ```
 
 **Include `deploymentBlock`** — event scans start there. Without it the app
-falls back to the last 10,000 blocks.
+falls back to the last 10,000 blocks. The v2 keys drive the **Payees · CoP
+(v2)** tab; `deployer` lets that tab show the demo owner's registered
+payees when no wallet is connected (clearly labelled).
 
 Option B — env vars (copy `.env.example` to `.env`):
 
 ```
 VITE_VAULT_ADDRESS=0x…
+VITE_VAULT_V2_ADDRESS=0x…
+VITE_REGISTRY_ADDRESS=0x…
 VITE_TUSD8_ADDRESS=0x456569838f1d43009A91ebA4263147Afd7233483
 VITE_RPC_URL=https://rpc-test.qday.info
 VITE_EXPLORER_URL=https://explorer-test.qday.info
@@ -115,9 +124,10 @@ src/
   App.tsx              # tabs, header, mock banner, wagmi + react-query setup
   lib/
     chain.ts           # Aevum Testnet (44005) chain definition + add-network params
-    abi.ts             # AgentPayVault + minimal ERC-20 ABIs
-    types.ts           # Session / Payment types
-    mock.ts            # demo data
+    abi.ts             # AgentPayVault + AgentPayVaultV2 + PayeeRegistry + ERC-20 ABIs
+    types.ts           # Session / Payment / RegisteredPayee types
+    mock.ts            # demo data (v1 + v2)
+    v2Evidence.ts      # recorded v2 on-chain evidence (reverted txs, e2e run)
     provider.ts        # VaultDataProvider seam: Live (viem) vs Mock
     hooks.ts           # react-query wrappers (30 s polling in live mode)
     format.ts          # formatting + plain-language error translation
@@ -128,7 +138,32 @@ src/
     DepositWithdraw.tsx# approve -> deposit flow with step-by-step status
     Sessions.tsx       # create session (allowlist editor, limits, expiry), list, revoke
     Activity.tsx       # PaymentExecuted events + daily-spend summary
+    Payees.tsx         # v2: registered payees (live), name-checked payments,
+                       # blocked payments, v2 sessions with per-payee caps
 ```
+
+## v2 — Confirmation of Payee
+
+The **Payees · CoP (v2)** tab is the v2 surface. Live reads, all through
+`VaultDataProvider`:
+
+- `listRegisteredPayees(owner)` — rebuilds the owner's registry
+  namespace from `PayeeRegistered` / `PayeeUpdated` / `PayeeRemoved`
+  events (chronological, chunked ≤1,000 blocks), then confirms each
+  surviving name with a live `nameOf` call.
+- `listV2Payments(owner)` — `PaymentExecuted` events from
+  `AgentPayVaultV2`, enriched with the registered payee name; every
+  payment shown here passed the name check by construction.
+- `listV2Sessions(owner)` — v2 sessions with `perPayeeCap` and
+  per-payee spend (`spentPerPayee` / `remainingPayeeAllowance`).
+- The two **blocked payments** are recorded evidence in
+  `src/lib/v2Evidence.ts` — reverted transactions emit no events, so
+  they cannot be discovered by scanning; each entry links to its
+  explorer receipt (status 0x0). They are never mock data.
+
+With no wallet connected, the tab shows the demo owner's (`deployer`
+from `deployments.json`) namespace, clearly labelled; connecting a
+wallet switches to the connected address's namespace.
 
 ## Credits
 

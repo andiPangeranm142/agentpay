@@ -9,7 +9,7 @@ import { aevumTestnet } from '../lib/chain';
 interface Props {
   config: AppConfig;
   provider: VaultDataProvider;
-  onNavigate: (tab: 'deposit' | 'sessions' | 'activity') => void;
+  onNavigate: (tab: 'deposit' | 'sessions' | 'activity' | 'payees') => void;
 }
 
 export function Overview({ config, provider, onNavigate }: Props) {
@@ -140,6 +140,21 @@ export function Overview({ config, provider, onNavigate }: Props) {
       </div>
 
       {loading && <p className="muted">Loading vault data…</p>}
+      <div className="card">
+        <div className="card-label">New in v2 — Confirmation of Payee</div>
+        <p>
+          The v2 vault checks the payee&apos;s <strong>name</strong> against the
+          owner&apos;s registry before paying: a typo&apos;d name or a lookalike
+          address is rejected on-chain. Live on testnet — a wrong-name payment
+          and a lookalike payment were both reverted, while the name-verified
+          payment to “Sari Bakery” went through.
+        </p>
+        <div className="card-actions">
+          <button className="btn btn-primary" onClick={() => onNavigate('payees')}>
+            See verified payees &amp; blocked payments
+          </button>
+        </div>
+      </div>
       {config.mode === 'live' && !isConnected && (
         <p className="muted">
           Connect your wallet to see your vault balance, sessions and payments —
