@@ -12,19 +12,33 @@ vault you own — inside a payee allowlist, per-transaction and daily
 spending limits, and an expiry you set — and you can revoke its access
 instantly, with every payment leaving a verifiable on-chain audit trail.
 
-- Live contract: [`AgentPayVault`
-  `0x4079f1A0f75458997DCd1A768170b96086276b47`](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47)
-  (Aevum testnet, source-verified, deployed 20 November 2026)
-- **New in v2 — Confirmation of Payee:**
+- **Current — v3, case-insensitive Confirmation of Payee:**
+  [`PayeeRegistryV3`
+  `0x75d65168A8aB54dF423E350e306FAB438A312dB4`](https://explorer-test.qday.info/address/0x75d65168A8aB54dF423E350e306FAB438A312dB4)
+  +
+  [`AgentPayVaultV3`
+  `0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e`](https://explorer-test.qday.info/address/0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e)
+  (both source-verified, deployed 21 November 2026) — the name check
+  is now case-insensitive ("sari bakery" pays "Sari Bakery"), names
+  are unique per owner with a reverse lookup, and session creation
+  fails fast on unregistered payees. See
+  [v3 — Case-insensitive Confirmation of
+  Payee](#v3--case-insensitive-confirmation-of-payee).
+- **Previous — v2, Confirmation of Payee:**
   [`PayeeRegistry`
   `0x5e1c3E6dcAfe32Df42B80277141b9F87C5FF6053`](https://explorer-test.qday.info/address/0x5e1c3e6dcafe32df42b80277141b9f87c5ff6053)
   +
   [`AgentPayVaultV2`
   `0xE68518A95cbbBD75f521C86688770a98140fE06F`](https://explorer-test.qday.info/address/0xE68518A95cbbBD75f521C86688770a98140fE06F)
-  (both source-verified, deployed 21 November 2026) — the vault now
-  checks the payee's *name* against the owner's registry before paying,
-  and each session caps spending per payee. See
+  (both source-verified, deployed 21 November 2026) — the vault
+  checks the payee's *name* against the owner's registry before
+  paying, and each session caps spending per payee. See
   [v2 — Confirmation of Payee](#v2--confirmation-of-payee).
+- **v1 (superseded):**
+  [`AgentPayVault`
+  `0x4079f1A0f75458997DCd1A768170b96086276b47`](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47)
+  (Aevum testnet, source-verified, deployed 20 November 2026) —
+  still live and unchanged, superseded by v2/v3.
 - Challenge: <https://qday.io/builder-challenge> ·
   <https://dorahacks.io/hackathon/qday/detail>
 
@@ -67,6 +81,18 @@ AgentPay splits **money** from **permission**:
   payee. V2 sessions also carry a **per-payee spend cap**: a cumulative
   limit per payee over the session's life, on top of the per-tx and
   daily limits.
+- **v3 — Case-insensitive Confirmation of Payee.** The name check
+  now ignores case: the agent may pass "sari bakery" for the
+  registered "Sari Bakery" — the registry compares `keccak256` of
+  the ASCII-lowercased name while keeping the original case for
+  display. Names are unique within each owner's namespace
+  (registering "SARI BAKERY" when "Sari Bakery" is taken reverts
+  `NameAlreadyTaken`), a reverse lookup `addressOf(owner, name)`
+  resolves a name to its payee in any case, and `createSession`
+  fails fast — a session listing an unregistered payee reverts
+  `PayeeNotRegistered` at creation instead of failing at the first
+  payment. All v1/v2 limits, expiry, and revocation semantics are
+  preserved.
 - **Every payment is auditable.** Each payment emits a
   `PaymentExecuted` event with the session id, payee, amount, and
   timestamp, readable from the explorer or the audit reader in this
@@ -130,13 +156,16 @@ sequenceDiagram
 All activity is on **QDay Aevum Testnet** — chain ID **44005**
 (`0xABE5`), RPC `https://rpc-test.qday.info`, explorer
 <https://explorer-test.qday.info>, gas token tQDAY (18 decimals,
-~1 gwei). Deployed from the contract source in commit `2eca873`.
+~1 gwei). All contracts were deployed from the source in this repo
+(v1: commit `2eca873`; v3: commit `0a9540d`).
 
 | Contract / token | Address | Explorer |
 | --- | --- | --- |
-| `AgentPayVault` (v1) | `0x4079f1A0f75458997DCd1A768170b96086276b47` | [explorer](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47) |
-| `PayeeRegistry` (v2) | `0x5e1c3E6dcAfe32Df42B80277141b9F87C5FF6053` | [explorer](https://explorer-test.qday.info/address/0x5e1c3e6dcafe32df42b80277141b9f87c5ff6053) |
-| `AgentPayVaultV2` (v2) | `0xE68518A95cbbBD75f521C86688770a98140fE06F` | [explorer](https://explorer-test.qday.info/address/0xE68518A95cbbBD75f521C86688770a98140fE06F) |
+| `PayeeRegistryV3` (v3 — **current**) | `0x75d65168A8aB54dF423E350e306FAB438A312dB4` | [explorer](https://explorer-test.qday.info/address/0x75d65168A8aB54dF423E350e306FAB438A312dB4) |
+| `AgentPayVaultV3` (v3 — **current**) | `0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e` | [explorer](https://explorer-test.qday.info/address/0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e) |
+| `AgentPayVault` (v1 — superseded) | `0x4079f1A0f75458997DCd1A768170b96086276b47` | [explorer](https://explorer-test.qday.info/address/0x4079f1A0f75458997DCd1A768170b96086276b47) |
+| `PayeeRegistry` (v2 — previous) | `0x5e1c3E6dcAfe32Df42B80277141b9F87C5FF6053` | [explorer](https://explorer-test.qday.info/address/0x5e1c3e6dcafe32df42b80277141b9f87c5ff6053) |
+| `AgentPayVaultV2` (v2 — previous) | `0xE68518A95cbbBD75f521C86688770a98140fE06F` | [explorer](https://explorer-test.qday.info/address/0xE68518A95cbbBD75f521C86688770a98140fE06F) |
 | tUSD8 (ERC-20, 6 decimals) | `0x456569838f1d43009A91ebA4263147Afd7233483` | [explorer](https://explorer-test.qday.info/address/0x456569838f1d43009A91ebA4263147Afd7233483) |
 | QDayFaucet | `0xE5074CBbd046AFb491EB8692abD6cF7ECCC6dEE5` | [explorer](https://explorer-test.qday.info/address/0xE5074CBbd046AFb491EB8692abD6cF7ECCC6dEE5) |
 | Deployer / vault owner (test wallet) | `0xf2Cc349a7629Ef20110621f713A7153306b05651` | [explorer](https://explorer-test.qday.info/address/0xf2Cc349a7629Ef20110621f713A7153306b05651) |
@@ -171,6 +200,24 @@ Deployment details (21 November 2026, v2):
 - The v1 vault was **not touched** by the v2 deployment — v1 sessions,
   balances, and history are unchanged; v2 is a separate vault with its
   own session ids (starting again at 0).
+
+Deployment details (21 November 2026, v3):
+
+- PayeeRegistryV3 deploy transaction:
+  [`0x723879bb…`](https://explorer-test.qday.info/tx/0x723879bb3b09fead5505a631a5ee9c3bc2845ecdabc7debebc584d752b665b9e),
+  block **3,740,129**, gas 1,006,244.
+- AgentPayVaultV3 deploy transaction:
+  [`0xf00d65cb…`](https://explorer-test.qday.info/tx/0xf00d65cb1b7b8608b7d902633c07ef1e18e95e2a3fc7356bb4597f5150d3b445),
+  block **3,740,129**, gas 1,390,539. Constructor args: tUSD8 +
+  PayeeRegistryV3 address above.
+- Total v3 deploy cost ≈ 0.00240 tQDAY at 1 gwei. Both contracts are
+  **source-verified** (`forge verify-contract --watch` returned "Pass
+  - Verified" for both, and the explorer API returns
+  `is_verified: true` with the correct contract names; compiler
+  `v0.8.24+commit.e11b9ed9`). Deployed from commit `0a9540d`.
+- The v1 and v2 vaults were **not touched** by the v3 deployment —
+  v1/v2 sessions, balances, and history are unchanged; v3 is a
+  separate vault with its own session ids (starting again at 0).
 
 ## Proven on testnet — what actually ran
 
@@ -237,9 +284,14 @@ owner** registered for that payee, in the owner's own namespace. An
 empty stored name reverts `PayeeNotRegistered(payee)`; otherwise the
 vault compares `keccak256(expectedName)` with the stored name's hash
 and a mismatch reverts `PayeeNameMismatch(expectedHash,
-registeredHash)`. Comparison is exact and case-sensitive; names are
+registeredHash)`. Comparison is exact and case-sensitive (v3 relaxes
+this to case-insensitive — see below); names are
 capped at 64 bytes. The session key can never register, update, or
-remove a name — only the owner can, in their own namespace.
+remove a name — only the owner can, in their own namespace. The
+registry is a private address book per owner, not a global registry —
+the same name may exist in different owners' namespaces; see
+[Namespace trade-off (v2 and
+v3)](#namespace-trade-off-v2-and-v3).
 
 Check order inside `pay`: session exists → caller is the session key
 → not revoked → not expired → payee on allowlist → amount > 0 →
@@ -283,6 +335,142 @@ values. The dashboard's **Payees · CoP (v2)** tab shows the registered
 payees live from the registry, the name-verified payment, and both
 rejections with their explorer receipts.
 
+## v3 — Case-insensitive Confirmation of Payee
+
+V3 keeps every v2 behaviour and fixes the sharpest edge of exact-name
+matching: a payment should not fail because the agent wrote "sari
+bakery" instead of "Sari Bakery". Three changes, all in the new
+contracts `PayeeRegistryV3` + `AgentPayVaultV3` — the v1/v2 contracts
+and tests are untouched.
+
+### How case-insensitive matching works
+
+`PayeeRegistryV3` stores each registered name **exactly as
+registered** (for display, via `nameOf`) and compares names by
+`keccak256` of a normalized form: `normalize()` lowercases ASCII
+`A`–`Z` only (bytes 0x41–0x5A, +32). `AgentPayVaultV3.pay` compares
+the normalized hash of `expectedName` against the stored name's
+normalized hash, so "sari bakery", "SARI BAKERY", and "SaRi BaKeRy"
+all pay the registered "Sari Bakery" — while a genuinely different
+name ("Sari Bakrey") still reverts `PayeeNameMismatch`, now with the
+*normalized* hashes. The public pure helpers `normalize` and
+`normalizedHash` let clients compute the same values off-chain.
+
+**Documented limits of normalization** (by design, not by accident):
+
+- **ASCII only.** Only `A`–`Z` are folded. Non-ASCII letters are not
+  folded, so "CAFÉ" does **not** match "café" — the `É`/`é` bytes
+  pass through unchanged and the hashes differ. Full Unicode case
+  folding on-chain is out of scope: it needs large lookup tables and
+  locale rules that do not belong in a payment check.
+- **No whitespace trimming.** Leading or trailing spaces are part of
+  the name, so " Sari Bakery" or "Sari Bakery " do **not** match
+  "Sari Bakery". The registry stores exactly what the owner
+  registered; trimming is a client concern.
+- Names are still capped at 64 bytes, as in v2.
+
+### Reverse lookup and per-owner name uniqueness
+
+`addressOf(owner, name)` is a view that resolves a name to its
+payee address — case-insensitively — and returns `address(0)` when
+no payee holds that name in that owner's namespace. It is keyed on
+`mapping(owner => mapping(normalizedHash => payee))`, so a client
+can turn a human-readable name into an address without scanning
+events.
+
+Within one owner's namespace, a (normalized) name may belong to only
+one payee: registering — or renaming to — a name another payee
+already holds reverts `NameAlreadyTaken(holder)`, where `holder` is
+the payee that owns the name. `updatePayee` moves the reverse entry
+(the old name is freed, the new name resolves; renaming to a name
+that only differs in case is allowed), and `removePayee` deletes the
+reverse entry and frees the name.
+
+### Fail-fast session creation
+
+`AgentPayVaultV3.createSession` checks
+`registry.isRegistered(msg.sender, payee)` for every payee and
+reverts `PayeeNotRegistered(payee)` when any payee is unregistered
+in the creator's namespace — and `nextSessionId` does not advance,
+so no session id is consumed by the failed call. A session that
+could never pay anyone is refused at creation instead of failing at
+the first payment. The pay-time check is kept as defence in depth:
+a payee removed from the registry *after* session creation still
+cannot be paid.
+
+Check order inside `pay` is unchanged from v2: session exists →
+caller is the session key → not revoked → not expired → payee on
+allowlist → amount > 0 → within per-tx limit → **Confirmation of
+Payee (now case-insensitive)** → per-payee cap → daily limit →
+owner balance.
+
+### Namespace trade-off (v2 and v3)
+
+The registry is a **private address book per owner, not a public or
+global registry** — and that is a deliberate design decision, not a
+gap:
+
+- Each owner has their own namespace. The same name ("Sari Bakery")
+  can be registered by different owners for different addresses, and
+  each owner's payments check only **their own** namespace
+  (`nameOf(sessionOwner, payee)`). No owner can see, overwrite, or
+  squat another owner's names.
+- **Uniqueness applies only inside one namespace.**
+  `NameAlreadyTaken` fires only when another payee in the *same*
+  owner's namespace already holds the (normalized) name. There is no
+  global first-come-first-served name market — no name squatting, no
+  front-running of popular names, and no need for a name-auction or
+  dispute mechanism.
+- **Privacy.** A payee list is a private fact about who an owner
+  pays; a global registry would publish every owner's payees under
+  one searchable namespace. Per-owner namespaces keep that
+  association visible only to whoever already knows the owner.
+- The trade-off is that a name is only meaningful *relative to its
+  owner*: "Sari Bakery" in Alice's namespace and "Sari Bakery" in
+  Bob's namespace may be different addresses, and a client must
+  always resolve names with the owner's address
+  (`addressOf(owner, name)`). That is the correct semantics for a
+  Confirmation-of-Payee check, which answers "is this the payee
+  *you* meant?" — not "is this a globally famous name?"
+
+### Proven on testnet — v3 end-to-end run (21 November 2026)
+
+Everything below happened on Aevum testnet on 21 November 2026 and
+is verifiable from the explorer links. Session parameters: per-tx
+limit 0.10 tUSD8, daily limit 0.20 tUSD8, per-payee cap 0.15 tUSD8,
+expiry +24h. The lookalike address used is
+`0xc592286d027E701A5bb0681675C1F4d80d2Ee8Ce` — the real payee's
+address with the last hex character changed.
+
+| # | Step | Transaction | Block | Result |
+| --- | --- | --- | --- | --- |
+| 1 | Approve v3 vault 0.40 tUSD8 (owner) | [`0x51b9ae04…`](https://explorer-test.qday.info/tx/0x51b9ae04a108240c6b7ae71d5d2c7d32193dce150da48ef17429731e61cebf4c) | 3,740,187 | ✅ |
+| 2 | Deposit 0.40 tUSD8 into the v3 vault | [`0xb94d4bae…`](https://explorer-test.qday.info/tx/0xb94d4baef242c3a2fc400575b3e071e2006d6c2a20a21a08e8b2c62ede52638c) | 3,740,193 | ✅ vault balance 0.40 |
+| 3 | Register payee "Sari Bakery" → `0xc592…Ee8Cd` | [`0x8843e73b…`](https://explorer-test.qday.info/tx/0x8843e73b335a0d5692ed1fde24d7c72e23019e43673d04321dac670af48ecff5) | 3,740,200 | ✅ `nameOf` = "Sari Bakery", `addressOf("sari bakery")` = payee |
+| 4 | Create v3 session 0 (limits above) | [`0x113e8cf1…`](https://explorer-test.qday.info/tx/0x113e8cf1069d21ddae20c8032a3b18d7dbfafe11d92900f5af5d6ebbe45bd20e) | 3,740,207 | ✅ |
+| 5 | Pay 0.05 tUSD8, name **"sari bakery"** (lowercase) | [`0x442446b1…`](https://explorer-test.qday.info/tx/0x442446b10aaf832eaddbe7ddae04de719aba1c0675b78f108e9d9a93d5faad10) | 3,740,214 | ✅ name verified case-insensitively |
+| 6 | Create session with UNREGISTERED payee (lookalike) | [`0x8d2ab8e1…`](https://explorer-test.qday.info/tx/0x8d2ab8e1627b06dae92e3c864ccf05a3ca71ebda4d456f962b6a91e9ce974d79) | 3,740,238 | ❌ reverted on-chain (status 0x0), `PayeeNotRegistered` |
+| 7 | Register duplicate name "SARI BAKERY" for lookalike | [`0x9e90ea83…`](https://explorer-test.qday.info/tx/0x9e90ea83d8dc6f13a3208fd03cbace537302461dd18e79c4311acdea3d502c30) | 3,740,251 | ❌ reverted on-chain (status 0x0), `NameAlreadyTaken` |
+| 8 | Revoke session 0 | [`0x88be81cc…`](https://explorer-test.qday.info/tx/0x88be81cc502c89c2efe4d29883f90d47c766fa7933df18dd0b8e56c3df074408) | 3,740,265 | ✅ |
+| 9 | Withdraw 0.35 tUSD8 | [`0x186e1c4a…`](https://explorer-test.qday.info/tx/0x186e1c4a7475887ca7dbb8ec8cf8087fcc6005fd5541f02065ca08880bcfb026) | 3,740,270 | ✅ |
+
+The two rejections were forced on-chain with an explicit gas limit
+(`cast` refuses to broadcast a call it knows will revert, so the
+first attempts died at gas estimation); the revert reasons were
+confirmed by `cast run` replay of the receipts — step 6 reverted
+with `PayeeNotRegistered(0xC592286d027E701a5bB0681675c1F4D80D2EE8Ce)`
+and step 7 with
+`NameAlreadyTaken(0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd)` (the
+real payee, who still holds the name). End state after the run
+(verified by `cast call`, 21 Nov 2026): owner **4.60 tUSD8** (0.40
+deposited, 0.05 paid, 0.35 withdrawn), payee **0.40 tUSD8** (only the
+lowercase-name payment arrived), v3 vault balance **0**,
+`spentPerPayee(session 0, payee)` **0.05**, session 0 revoked and no
+other sessions exist (`nextSessionId` = 1 — the failed
+`createSession` consumed no id). Balances keep changing as live
+testing continues — check the explorer links above for current
+values.
+
 ## Demo
 
 - **Live deployment:** the contract above, plus the dashboard in live
@@ -306,14 +494,20 @@ agentpay/
 │   │   ├── AgentPayVault.sol         # the vault (v1, one contract)
 │   │   ├── AgentPayVaultV2.sol       # v2 vault: Confirmation of Payee + per-payee cap
 │   │   ├── PayeeRegistry.sol         # v2: per-owner payee-name registry
+│   │   ├── AgentPayVaultV3.sol       # v3 vault: case-insensitive CoP + fail-fast sessions
+│   │   ├── PayeeRegistryV3.sol       # v3: normalized names, reverse lookup, uniqueness
 │   │   └── mocks/MockUSD8.sol        # 6-decimal mock tUSD8 (local tests only)
 │   ├── test/
 │   │   ├── AgentPayVault.t.sol       # unit + fuzz tests (53 tests)
 │   │   ├── AgentPayVaultV2.t.sol     # v2 unit + fuzz tests (38 tests)
-│   │   └── fork/AevumFork.t.sol      # fork tests vs real tUSD8 (3 tests)
+│   │   ├── AgentPayVaultV3.t.sol     # v3 unit + fuzz tests (51 tests)
+│   │   └── fork/
+│   │       ├── AevumFork.t.sol       # fork tests vs real tUSD8 (3 tests)
+│   │       └── AevumForkV3.t.sol     # v3 fork tests vs real tUSD8 (4 tests)
 │   ├── script/Deploy.s.sol           # deploy script (real tUSD8 on Aevum/fork,
 │   │                                 # MockUSD8 on local anvil only)
 │   ├── script/DeployV2.s.sol         # deploy script for PayeeRegistry + AgentPayVaultV2
+│   ├── script/DeployV3.s.sol         # deploy script for PayeeRegistryV3 + AgentPayVaultV3
 │   ├── tools/check-shanghai.mjs      # fails the build on Cancun-only opcodes
 │   ├── Makefile                      # build / test / fork / deploy shortcuts
 │   └── README.md                     # contract details + Aevum rules
@@ -329,8 +523,7 @@ agentpay/
 │       ├── public/deployments.json   # live deployment (drives live mode)
 │       └── README.md         # dashboard details, mock vs live mode
 └── docs/
-    ├── README-DRAFT.md               # early draft (superseded by this README)
-    └── DORAHACKS-SUBMISSION-DRAFT.md # submission form draft
+    └── README-DRAFT.md               # early draft (superseded by this README)
 ```
 
 ## Tech stack
@@ -529,6 +722,15 @@ forge script script/DeployV2.s.sol --rpc-url https://rpc-test.qday.info \
 # (AgentPayVaultV2, PayeeRegistry, v2DeployTxVault, v2DeployTxRegistry,
 # v2DeploymentBlockVault, v2DeploymentBlockRegistry) and copy it to
 # apps/web/public/deployments.json so the dashboard's Payees tab goes live.
+
+# 6. (v3) Deploy the PayeeRegistryV3 + AgentPayVaultV3 the same way:
+cd contracts
+forge script script/DeployV3.s.sol --rpc-url https://rpc-test.qday.info \
+  --broadcast --legacy --account agentpay-deployer
+# Record both addresses + deploy txs in deployments.json
+# (AgentPayVaultV3, PayeeRegistryV3, v3DeployTxVault, v3DeployTxRegistry,
+# v3DeploymentBlockVault, v3DeploymentBlockRegistry) and copy it to
+# apps/web/public/deployments.json.
 ```
 
 ## Configuration
@@ -721,6 +923,33 @@ V2 `getSession` returns the v1 fields plus `perPayeeCap` (after
 `EmptyName`, `NameTooLong`, `PayeeNotRegistered()`,
 `PayeeAlreadyRegistered()`.
 
+### v3 — `PayeeRegistryV3` + `AgentPayVaultV3`
+
+`AgentPayVaultV3` (`contracts/src/AgentPayVaultV3.sol`) keeps every
+v1/v2 behaviour and adds case-insensitive matching, the reverse
+lookup, per-owner name uniqueness, and fail-fast session creation.
+Only the differences from v2 are listed here; `deposit`,
+`withdraw`, `revokeSession`, `balances`, `nextSessionId`,
+`isPayeeAllowed`, `remainingDailyAllowance`,
+`remainingPayeeAllowance`, and `spentPerPayee` behave as in v2, and
+`getSession` returns the same fields as v2.
+
+| Function | Description |
+| --- | --- |
+| `PayeeRegistryV3.normalize(string name)` | Pure helper: ASCII-lowercases `A`–`Z` (bytes 0x41–0x5A, +32). Non-ASCII bytes pass through unchanged; no whitespace trimming. |
+| `PayeeRegistryV3.normalizedHash(string name)` | Pure helper: `keccak256` of the normalized name — the value all comparisons and the reverse lookup are keyed on. |
+| `PayeeRegistryV3.registeredNameHash(address owner, address payee)` | Normalized-name hash of the name registered for `payee` in `owner`'s namespace; `bytes32(0)` when unregistered. Used by the vault to report `PayeeNameMismatch` with the same normalized hashes it compared. |
+| `PayeeRegistryV3.registerPayee(address payee, string name)` | As v2, plus reverts `NameAlreadyTaken(holder)` when the (normalized) name is already held by another payee in the caller's namespace. |
+| `PayeeRegistryV3.updatePayee(address payee, string newName)` | As v2, plus moves the reverse entry: the old name is freed and the new name resolves. Reverts `NameAlreadyTaken` when the new name is taken; renaming to a name that only differs in case is allowed. |
+| `PayeeRegistryV3.removePayee(address payee)` | As v2, plus deletes the reverse entry and frees the name. |
+| `PayeeRegistryV3.addressOf(address owner, string name)` | Reverse lookup (view, case-insensitive): the payee holding `name` in `owner`'s namespace, or `address(0)` when no payee holds it. |
+| `PayeeRegistryV3.matchesName(address owner, address payee, string expectedName)` | As v2, but the comparison is case-insensitive (normalized hashes). |
+| `AgentPayVaultV3.createSession(address sessionKey, address[] payees, uint256 perTxLimit, uint256 dailyLimit, uint256 perPayeeCap, uint64 expiry)` | As v2, plus fail-fast: reverts `PayeeNotRegistered(payee)` when any payee is unregistered in the creator's namespace, and `nextSessionId` does not advance. |
+| `AgentPayVaultV3.pay(uint256 sessionId, address payee, uint256 amount, string expectedName)` | As v2, but the Confirmation of Payee check is case-insensitive: `PayeeNameMismatch` now carries the *normalized* expected and registered hashes. The pay-time `PayeeNotRegistered` check is kept (defence in depth). |
+
+New v3 error: `NameAlreadyTaken(address holder)` (registry — the
+payee that already owns the name). All other errors are as in v2.
+
 ## Security model
 
 - **Least privilege.** The session key can do exactly one thing: pay
@@ -730,11 +959,15 @@ V2 `getSession` returns the v1 fields plus `perPayeeCap` (after
 - **Blast radius is capped.** The most a compromised session key can
   move is the daily limit, to allowlisted payees only — and only until
   the owner revokes it (one transaction) or it expires.
-- **Names stop spoofing (v2).** Even with a stolen session key, an
+- **Names stop spoofing (v2, v3).** Even with a stolen session key, an
   attacker cannot redirect a payment to a lookalike address or a
   mistyped name: the vault reverts unless the name matches the owner's
-  registry exactly. And the per-payee cap bounds how much any single
-  payee can ever receive from a session.
+  registry exactly (v2) or after ASCII-lowercase normalization (v3).
+  And the per-payee cap bounds how much any single payee can ever
+  receive from a session. V3 adds per-owner name uniqueness (two
+  payees cannot share a name in one namespace, so a name always
+  resolves to one address) and fail-fast session creation (a session
+  can never be created for an unregistered payee).
 - **Owner key isolation.** The owner key never touches the agent host.
   The agent host holds only the session key, a test wallet with a
   little tQDAY for gas.
@@ -765,12 +998,12 @@ All counts below were verified by running the suites on
 ```bash
 # Contracts (from contracts/)
 make build      # forge build + Shanghai opcode check
-make test       # unit + fuzz tests (no network) — 91 passed (53 v1 + 38 v2)
-make test-fork  # fork tests vs real tUSD8 on Aevum — 3 passed
+make test       # forge unit + fuzz tests (no network) — 142 passed (53 v1 + 38 v2 + 51 v3)
+make test-fork  # forge fork tests vs real tUSD8 on Aevum — 7 passed (3 v1 + 4 v3)
 make check      # build + unit + fork
 
 # Agent (from apps/agent/)
-npm test        # unit tests (vitest) — 90 passed
+npm test        # agent unit tests (vitest) — 90 passed
 npm run e2e     # end-to-end on a local anvil chain — 17/17 checks
 
 # Dashboard (from apps/web/)
@@ -784,7 +1017,14 @@ double-payment/idempotency (including the period-boundary case found
 in live testing), and the v2 rules: name mismatch / unregistered
 payee reverts (including a fuzz test over non-matching names),
 per-payee cap enforcement and per-session isolation, and registry
-namespace isolation.
+namespace isolation. The v3 rules are covered the same way:
+case-insensitive matching (including fuzz tests over every case
+permutation of the registered name, and over wrong names that must
+never match), reverse lookup + per-owner name uniqueness
+(`NameAlreadyTaken`, update moves the entry, remove frees the name),
+fail-fast `createSession` (`PayeeNotRegistered`, no session id
+consumed), and a full regression of all v1/v2 behaviour inside the
+v3 vault.
 
 ## Platform integration notes (for the judges)
 
@@ -799,6 +1039,12 @@ How AgentPay uses — and does not use — QDay platform features, verified
 | x402 facilitator | Announced as live on testnet; no endpoint published | Not used in v1; roadmap item. |
 | ERC-8004 registry | Still in internal testing; "isn't open for this challenge" (starter kit); the canonical registry addresses hold no code on Aevum | Not used; AgentPay keeps its own session registry in the vault. |
 | EIP-3009 gasless pattern | Works today (starter kit) | Roadmap (v1.1). |
+
+Judging rubric (starter kit, total 100): Innovation 20, UX 15,
+technical quality 15, utility 15, safety 15, demo 10, docs 10. The
+DoraHacks challenge page additionally lists an 8th criterion,
+"Ecosystem contribution (reusable, open source)", with no weight
+published.
 
 Sources: <https://qday.io/build>,
 <https://wiki.qday.info/guide/handbook/why-qday/>,
@@ -835,6 +1081,14 @@ Sources: <https://qday.io/build>,
       per-payee spend cap. Deployed and proven on testnet
       21 November 2026 (see [v2 — Confirmation of
       Payee](#v2--confirmation-of-payee)).
+- [x] **v3 — Case-insensitive Confirmation of Payee.** ASCII
+      case-insensitive name matching (original case kept for
+      display), reverse lookup `addressOf(owner, name)`, per-owner
+      name uniqueness (`NameAlreadyTaken`), and fail-fast
+      `createSession` (`PayeeNotRegistered`). Deployed and proven on
+      testnet 21 November 2026 (see [v3 — Case-insensitive
+      Confirmation of
+      Payee](#v3--case-insensitive-confirmation-of-payee)).
 - [ ] **v1.1 — Gasless agent payments.** EIP-3009
       `receiveWithAuthorization` + relayer (the starter kit's gasless
       checkout pattern), so the session key needs no tQDAY.
@@ -845,7 +1099,7 @@ Sources: <https://qday.io/build>,
       facilitator once its endpoint is published.
 - [ ] **v1.4 — Keeper network.** Decentralised scheduling so bills are
       paid even if the owner's runner is offline.
-- [ ] **v3 — Multisig owner, multi-vault, ERC-8004 reputation.**
+- [ ] **v4 — Multisig owner, multi-vault, ERC-8004 reputation.**
       Reputation feedback for agents; mainnet when QDay mainnet
       launches (scheduled Q1 2027).
 

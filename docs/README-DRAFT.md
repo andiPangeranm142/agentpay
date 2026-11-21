@@ -120,8 +120,7 @@ agentpay/
 │   └── agent/            # off-chain bill scheduler + payer (Node.js)
 │       └── bills.json.example   # bill schedule template
 └── docs/
-    ├── README-DRAFT.md              # this file (draft source)
-    └── DORAHACKS-SUBMISSION-DRAFT.md
+    └── README-DRAFT.md              # this file (draft source)
 ```
 
 ## Tech stack
