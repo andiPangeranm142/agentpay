@@ -19,7 +19,7 @@ instantly, with every payment leaving a verifiable on-chain audit trail.
   [`AgentPayVaultV3`
   `0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e`](https://explorer-test.qday.info/address/0xd17e08cD03b074a9f2e1f6a69CcD239FA7C24E2e)
   (both source-verified, deployed 21 November 2026) — the name check
-  is now case-insensitive ("sari bakery" pays "Sari Bakery"), names
+  is now case-insensitive ("kedai kopi senja" pays "Kedai Kopi Senja"), names
   are unique per owner with a reverse lookup, and session creation
   fails fast on unregistered payees. See
   [v3 — Case-insensitive Confirmation of
@@ -82,11 +82,11 @@ AgentPay splits **money** from **permission**:
   limit per payee over the session's life, on top of the per-tx and
   daily limits.
 - **v3 — Case-insensitive Confirmation of Payee.** The name check
-  now ignores case: the agent may pass "sari bakery" for the
-  registered "Sari Bakery" — the registry compares `keccak256` of
+  now ignores case: the agent may pass "kedai kopi senja" for the
+  registered "Kedai Kopi Senja" — the registry compares `keccak256` of
   the ASCII-lowercased name while keeping the original case for
   display. Names are unique within each owner's namespace
-  (registering "SARI BAKERY" when "Sari Bakery" is taken reverts
+  (registering "KEDAI KOPI SENJA" when "Kedai Kopi Senja" is taken reverts
   `NameAlreadyTaken`), a reverse lookup `addressOf(owner, name)`
   resolves a name to its payee in any case, and `createSession`
   fails fast — a session listing an unregistered payee reverts
@@ -338,8 +338,8 @@ rejections with their explorer receipts.
 ## v3 — Case-insensitive Confirmation of Payee
 
 V3 keeps every v2 behaviour and fixes the sharpest edge of exact-name
-matching: a payment should not fail because the agent wrote "sari
-bakery" instead of "Sari Bakery". Three changes, all in the new
+matching: a payment should not fail because the agent wrote "kedai kopi
+senja" instead of "Kedai Kopi Senja". Three changes, all in the new
 contracts `PayeeRegistryV3` + `AgentPayVaultV3` — the v1/v2 contracts
 and tests are untouched.
 
@@ -350,9 +350,9 @@ registered** (for display, via `nameOf`) and compares names by
 `keccak256` of a normalized form: `normalize()` lowercases ASCII
 `A`–`Z` only (bytes 0x41–0x5A, +32). `AgentPayVaultV3.pay` compares
 the normalized hash of `expectedName` against the stored name's
-normalized hash, so "sari bakery", "SARI BAKERY", and "SaRi BaKeRy"
-all pay the registered "Sari Bakery" — while a genuinely different
-name ("Sari Bakrey") still reverts `PayeeNameMismatch`, now with the
+normalized hash, so "kedai kopi senja", "KEDAI KOPI SENJA", and "KeDaI KoPi SeNjA"
+all pay the registered "Kedai Kopi Senja" — while a genuinely different
+name ("Kedai Kopi Senaj") still reverts `PayeeNameMismatch`, now with the
 *normalized* hashes. The public pure helpers `normalize` and
 `normalizedHash` let clients compute the same values off-chain.
 
@@ -364,8 +364,8 @@ name ("Sari Bakrey") still reverts `PayeeNameMismatch`, now with the
   folding on-chain is out of scope: it needs large lookup tables and
   locale rules that do not belong in a payment check.
 - **No whitespace trimming.** Leading or trailing spaces are part of
-  the name, so " Sari Bakery" or "Sari Bakery " do **not** match
-  "Sari Bakery". The registry stores exactly what the owner
+  the name, so " Kedai Kopi Senja" or "Kedai Kopi Senja " do **not** match
+  "Kedai Kopi Senja". The registry stores exactly what the owner
   registered; trimming is a client concern.
 - Names are still capped at 64 bytes, as in v2.
 
@@ -410,7 +410,7 @@ The registry is a **private address book per owner, not a public or
 global registry** — and that is a deliberate design decision, not a
 gap:
 
-- Each owner has their own namespace. The same name ("Sari Bakery")
+- Each owner has their own namespace. The same name ("Kedai Kopi Senja")
   can be registered by different owners for different addresses, and
   each owner's payments check only **their own** namespace
   (`nameOf(sessionOwner, payee)`). No owner can see, overwrite, or
@@ -426,7 +426,7 @@ gap:
   one searchable namespace. Per-owner namespaces keep that
   association visible only to whoever already knows the owner.
 - The trade-off is that a name is only meaningful *relative to its
-  owner*: "Sari Bakery" in Alice's namespace and "Sari Bakery" in
+  owner*: "Kedai Kopi Senja" in Alice's namespace and "Kedai Kopi Senja" in
   Bob's namespace may be different addresses, and a client must
   always resolve names with the owner's address
   (`addressOf(owner, name)`). That is the correct semantics for a
@@ -444,32 +444,42 @@ address with the last hex character changed.
 
 | # | Step | Transaction | Block | Result |
 | --- | --- | --- | --- | --- |
-| 1 | Approve v3 vault 0.40 tUSD8 (owner) | [`0x51b9ae04…`](https://explorer-test.qday.info/tx/0x51b9ae04a108240c6b7ae71d5d2c7d32193dce150da48ef17429731e61cebf4c) | 3,740,187 | ✅ |
-| 2 | Deposit 0.40 tUSD8 into the v3 vault | [`0xb94d4bae…`](https://explorer-test.qday.info/tx/0xb94d4baef242c3a2fc400575b3e071e2006d6c2a20a21a08e8b2c62ede52638c) | 3,740,193 | ✅ vault balance 0.40 |
-| 3 | Register payee "Sari Bakery" → `0xc592…Ee8Cd` | [`0x8843e73b…`](https://explorer-test.qday.info/tx/0x8843e73b335a0d5692ed1fde24d7c72e23019e43673d04321dac670af48ecff5) | 3,740,200 | ✅ `nameOf` = "Sari Bakery", `addressOf("sari bakery")` = payee |
-| 4 | Create v3 session 0 (limits above) | [`0x113e8cf1…`](https://explorer-test.qday.info/tx/0x113e8cf1069d21ddae20c8032a3b18d7dbfafe11d92900f5af5d6ebbe45bd20e) | 3,740,207 | ✅ |
-| 5 | Pay 0.05 tUSD8, name **"sari bakery"** (lowercase) | [`0x442446b1…`](https://explorer-test.qday.info/tx/0x442446b10aaf832eaddbe7ddae04de719aba1c0675b78f108e9d9a93d5faad10) | 3,740,214 | ✅ name verified case-insensitively |
-| 6 | Create session with UNREGISTERED payee (lookalike) | [`0x8d2ab8e1…`](https://explorer-test.qday.info/tx/0x8d2ab8e1627b06dae92e3c864ccf05a3ca71ebda4d456f962b6a91e9ce974d79) | 3,740,238 | ❌ reverted on-chain (status 0x0), `PayeeNotRegistered` |
-| 7 | Register duplicate name "SARI BAKERY" for lookalike | [`0x9e90ea83…`](https://explorer-test.qday.info/tx/0x9e90ea83d8dc6f13a3208fd03cbace537302461dd18e79c4311acdea3d502c30) | 3,740,251 | ❌ reverted on-chain (status 0x0), `NameAlreadyTaken` |
-| 8 | Revoke session 0 | [`0x88be81cc…`](https://explorer-test.qday.info/tx/0x88be81cc502c89c2efe4d29883f90d47c766fa7933df18dd0b8e56c3df074408) | 3,740,265 | ✅ |
-| 9 | Withdraw 0.35 tUSD8 | [`0x186e1c4a…`](https://explorer-test.qday.info/tx/0x186e1c4a7475887ca7dbb8ec8cf8087fcc6005fd5541f02065ca08880bcfb026) | 3,740,270 | ✅ |
+| 1 | Rename payee to "Kedai Kopi Senja" (`updatePayee`) | [`0x559d25fa…`](https://explorer-test.qday.info/tx/0x559d25fa9ba7f6f791cc29bdb6749261b4adf3b32ad052d64e64975bd7ba8596) | 3,741,044 | ✅ `nameOf` = "Kedai Kopi Senja", `addressOf("kedai kopi senja")` = payee, old name freed |
+| 2 | Approve v3 vault 0.40 tUSD8 (owner) | [`0x5509d716…`](https://explorer-test.qday.info/tx/0x5509d716f5b37e6d445dc0e8efe12aeabb5798fd876d123463fc73ef6a8794fe) | 3,741,065 | ✅ |
+| 3 | Deposit 0.40 tUSD8 into the v3 vault | [`0x32d4def8…`](https://explorer-test.qday.info/tx/0x32d4def8405fa1bf3c86ef3ffa17f8a46eb6fb549db8f5d8a41dfb6679cd56a3) | 3,741,070 | ✅ vault balance 0.40 |
+| 4 | Create v3 session 1 (limits above) | [`0xa94ad216…`](https://explorer-test.qday.info/tx/0xa94ad2163ac3f283d06b301bb365fefad982e1be45919da36caf2923fd98b465) | 3,741,082 | ✅ |
+| 5 | Pay 0.05 tUSD8, name **"kedai kopi senja"** (lowercase) | [`0xaa426288…`](https://explorer-test.qday.info/tx/0xaa426288359993ec741b60401e34a12663a07ebbf8014bc274913ef6549dadbe) | 3,741,093 | ✅ name verified case-insensitively |
+| 6 | Pay 0.05, typo name "Kedai Kopi Senaj" | [`0xad8466f3…`](https://explorer-test.qday.info/tx/0xad8466f3a59190f828c8b86f4c29ff079073b181479d93e9327243a56ba177e6) | 3,741,107 | ❌ reverted on-chain (status 0x0), `PayeeNameMismatch` |
+| 7 | Register duplicate name "KEDAI KOPI SENJA" for lookalike | [`0x32baa338…`](https://explorer-test.qday.info/tx/0x32baa3382afceb645d7aad456d6de9e129c64769211f1f4173e97e930912b706) | 3,741,125 | ❌ reverted on-chain (status 0x0), `NameAlreadyTaken` |
+| 8 | Create session with UNREGISTERED payee (lookalike) | [`0xffbc584c…`](https://explorer-test.qday.info/tx/0xffbc584cf45b981b8bf89b7f226ab1e954ed4ad770c3565d792d662447d6bcec) | 3,741,142 | ❌ reverted on-chain (status 0x0), `PayeeNotRegistered` |
+| 9 | Register lookalike under temp name "Kedai Kopi Senja 2" | [`0x18c91e5b…`](https://explorer-test.qday.info/tx/0x18c91e5bf4b0c0a7fd88c036968f0ac0f0312893c596efc6ba3ce5e2d7d29b07) | 3,741,158 | ✅ setup for step 12 |
+| 10 | Create v3 session 2 with lookalike on the allowlist | [`0x661fe193…`](https://explorer-test.qday.info/tx/0x661fe19382e74264a7a3f3bb83ed5f0d28223f416af0d0f9c1f2efc645f18040) | 3,741,165 | ✅ |
+| 11 | Remove lookalike from the registry (`removePayee`) | [`0x66ba69ae…`](https://explorer-test.qday.info/tx/0x66ba69ae8bd35dcb3e6b14e8166de4d19f41d04559a976467551dbacf7a067ef) | 3,741,177 | ✅ lookalike unregistered, temp name freed |
+| 12 | Pay 0.05 to the removed lookalike (session 2) | [`0xf4de0c38…`](https://explorer-test.qday.info/tx/0xf4de0c3824f0f585388061e57c50cde3723862349ca5fe9219d952fc5588db37) | 3,741,185 | ❌ reverted on-chain (status 0x0), `PayeeNotRegistered` — defence in depth |
+| 13 | Revoke session 1 | [`0x0653ec89…`](https://explorer-test.qday.info/tx/0x0653ec89ef5f6c83919b3531d28ed4d7896615b54992bed38786fb0001b035f5) | 3,741,202 | ✅ |
+| 14 | Revoke session 2 | [`0x7edee684…`](https://explorer-test.qday.info/tx/0x7edee6843af280849c1a344a5f838c7ebce2006fc0ad0457593a35eba3b0f4ac) | 3,741,207 | ✅ |
+| 15 | Withdraw 0.35 tUSD8 | [`0xa7975fe6…`](https://explorer-test.qday.info/tx/0xa7975fe6d2680c80adb32e2fe97d2f7514619aca8b579a563e4654b145aed6eb) | 3,741,211 | ✅ |
 
-The two rejections were forced on-chain with an explicit gas limit
+The four rejections were forced on-chain with an explicit gas limit
 (`cast` refuses to broadcast a call it knows will revert, so the
 first attempts died at gas estimation); the revert reasons were
 confirmed by `cast run` replay of the receipts — step 6 reverted
-with `PayeeNotRegistered(0xC592286d027E701a5bB0681675c1F4D80D2EE8Ce)`
-and step 7 with
+with `PayeeNameMismatch` (normalized hash of the typo vs the
+registered name), step 7 with
 `NameAlreadyTaken(0xc592286d027E701A5bb0681675C1F4d80d2Ee8Cd)` (the
-real payee, who still holds the name). End state after the run
-(verified by `cast call`, 21 Nov 2026): owner **4.60 tUSD8** (0.40
-deposited, 0.05 paid, 0.35 withdrawn), payee **0.40 tUSD8** (only the
-lowercase-name payment arrived), v3 vault balance **0**,
-`spentPerPayee(session 0, payee)` **0.05**, session 0 revoked and no
-other sessions exist (`nextSessionId` = 1 — the failed
-`createSession` consumed no id). Balances keep changing as live
-testing continues — check the explorer links above for current
-values.
+real payee, who still holds the name), step 8 with
+`PayeeNotRegistered(0xC592286d027E701a5bB0681675c1F4D80D2EE8Ce)`,
+and step 12 with the same `PayeeNotRegistered` — the pay-time check
+catching a payee removed from the registry after the session was
+created (defence in depth). End state after the run (verified by
+`cast call`, 21 Nov 2026): owner **4.55 tUSD8** (0.40 deposited,
+0.05 paid, 0.35 withdrawn), payee **0.45 tUSD8** (only the
+lowercase-name payment arrived in this run), v3 vault balance **0**,
+`spentPerPayee(session 1, payee)` **0.05**,
+`spentPerPayee(session 2, lookalike)` **0**, sessions 1 and 2
+revoked (`nextSessionId` = 3 — the failed `createSession` consumed
+no id). Balances keep changing as live testing continues — check the
+explorer links above for current values.
 
 ## Demo
 

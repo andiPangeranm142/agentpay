@@ -31,7 +31,7 @@ contract AevumForkV3Test is Test {
         vm.startPrank(owner);
         TUSD8.approve(address(vault), 500e6);
         vault.deposit(500e6);
-        registry.registerPayee(payee, "Sari Bakery");
+        registry.registerPayee(payee, "Kedai Kopi Senja");
         address[] memory payees = new address[](1);
         payees[0] = payee;
         uint256 id =
@@ -39,11 +39,11 @@ contract AevumForkV3Test is Test {
         vm.stopPrank();
 
         // Reverse lookup works on the fork too.
-        assertEq(registry.addressOf(owner, "sari bakery"), payee);
+        assertEq(registry.addressOf(owner, "kedai kopi senja"), payee);
 
         // Pay with the lowercase name against the real token.
         vm.prank(sessionKey);
-        vault.pay(id, payee, 25e6, "sari bakery");
+        vault.pay(id, payee, 25e6, "kedai kopi senja");
 
         assertEq(TUSD8.balanceOf(payee), 25e6);
         assertEq(vault.balances(owner), 475e6);
@@ -70,9 +70,9 @@ contract AevumForkV3Test is Test {
         PayeeRegistryV3 registry = new PayeeRegistryV3();
 
         vm.startPrank(owner);
-        registry.registerPayee(payee, "Sari Bakery");
+        registry.registerPayee(payee, "Kedai Kopi Senja");
         vm.expectRevert(abi.encodeWithSelector(PayeeRegistryV3.NameAlreadyTaken.selector, payee));
-        registry.registerPayee(unregistered, "SARI BAKERY");
+        registry.registerPayee(unregistered, "KEDAI KOPI SENJA");
         vm.stopPrank();
     }
 }

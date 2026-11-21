@@ -23,7 +23,7 @@ contract AgentPayVaultV3Test is Test {
     address lookalike = makeAddr("lookalike");
     address stranger = makeAddr("stranger");
 
-    string constant NAME1 = "Sari Bakery";
+    string constant NAME1 = "Kedai Kopi Senja";
     string constant NAME2 = "Toko Listrik Jaya";
 
     uint256 constant PER_TX = 100e6;
@@ -108,19 +108,19 @@ contract AgentPayVaultV3Test is Test {
     // ---- v3: case-insensitive matching ----
 
     function test_v3_matchesNameIsCaseInsensitive() public view {
-        assertTrue(registry.matchesName(owner, payee1, "sari bakery"));
-        assertTrue(registry.matchesName(owner, payee1, "SARI BAKERY"));
-        assertTrue(registry.matchesName(owner, payee1, "SaRi BaKeRy"));
+        assertTrue(registry.matchesName(owner, payee1, "kedai kopi senja"));
+        assertTrue(registry.matchesName(owner, payee1, "KEDAI KOPI SENJA"));
+        assertTrue(registry.matchesName(owner, payee1, "KeDaI KoPi SeNjA"));
         assertTrue(registry.matchesName(owner, payee1, NAME1));
         // Display name keeps its original case.
         assertEq(registry.nameOf(owner, payee1), NAME1);
     }
 
     function test_v3_matchesNameStillRejectsWrongNames() public view {
-        assertFalse(registry.matchesName(owner, payee1, "Sari Bakrey"));
-        assertFalse(registry.matchesName(owner, payee1, "sari bakrey"));
-        assertFalse(registry.matchesName(owner, payee1, "Sari Bakery "));
-        assertFalse(registry.matchesName(owner, payee1, " Sari Bakery"));
+        assertFalse(registry.matchesName(owner, payee1, "Kedai Kopi Senaj"));
+        assertFalse(registry.matchesName(owner, payee1, "kedai kopi senaj"));
+        assertFalse(registry.matchesName(owner, payee1, "Kedai Kopi Senja "));
+        assertFalse(registry.matchesName(owner, payee1, " Kedai Kopi Senja"));
         assertFalse(registry.matchesName(owner, payee1, ""));
         assertFalse(registry.matchesName(owner, lookalike, NAME1));
     }
@@ -129,8 +129,8 @@ contract AgentPayVaultV3Test is Test {
         // ASCII letters fold; digits, punctuation and non-ASCII bytes pass
         // through unchanged (documented limitation).
         assertEq(registry.normalize("AbC-123_XyZ"), bytes("abc-123_xyz"));
-        assertEq(registry.normalizedHash("Sari Bakery"), registry.normalizedHash("sari bakery"));
-        assertEq(registry.registeredNameHash(owner, payee1), keccak256(bytes("sari bakery")));
+        assertEq(registry.normalizedHash("Kedai Kopi Senja"), registry.normalizedHash("kedai kopi senja"));
+        assertEq(registry.registeredNameHash(owner, payee1), keccak256(bytes("kedai kopi senja")));
         assertEq(registry.registeredNameHash(owner, lookalike), bytes32(0));
     }
 
@@ -150,8 +150,8 @@ contract AgentPayVaultV3Test is Test {
 
     function test_v3_addressOf() public view {
         assertEq(registry.addressOf(owner, NAME1), payee1);
-        assertEq(registry.addressOf(owner, "sari bakery"), payee1);
-        assertEq(registry.addressOf(owner, "SARI BAKERY"), payee1);
+        assertEq(registry.addressOf(owner, "kedai kopi senja"), payee1);
+        assertEq(registry.addressOf(owner, "KEDAI KOPI SENJA"), payee1);
         assertEq(registry.addressOf(owner, NAME2), payee2);
         assertEq(registry.addressOf(owner, "toko listrik jaya"), payee2);
         // Unknown names resolve to address(0).
@@ -163,10 +163,10 @@ contract AgentPayVaultV3Test is Test {
     function test_v3_registerRevertsOnDuplicateNameDifferentCase() public {
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(PayeeRegistryV3.NameAlreadyTaken.selector, payee1));
-        registry.registerPayee(lookalike, "sari bakery");
+        registry.registerPayee(lookalike, "kedai kopi senja");
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(PayeeRegistryV3.NameAlreadyTaken.selector, payee1));
-        registry.registerPayee(lookalike, "SARI BAKERY");
+        registry.registerPayee(lookalike, "KEDAI KOPI SENJA");
         // Exact-case duplicate also reverts.
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(PayeeRegistryV3.NameAlreadyTaken.selector, payee1));
@@ -177,22 +177,22 @@ contract AgentPayVaultV3Test is Test {
     function test_v3_sameNameAllowedInDifferentOwnerNamespace() public {
         // Name uniqueness is per owner: owner2 may use the same name.
         vm.prank(owner2);
-        registry.registerPayee(payee1, "sari bakery");
-        assertEq(registry.addressOf(owner2, "Sari Bakery"), payee1);
-        assertEq(registry.addressOf(owner, "Sari Bakery"), payee1);
+        registry.registerPayee(payee1, "kedai kopi senja");
+        assertEq(registry.addressOf(owner2, "Kedai Kopi Senja"), payee1);
+        assertEq(registry.addressOf(owner, "Kedai Kopi Senja"), payee1);
     }
 
     function test_v3_updateMovesReverseLookup() public {
         vm.prank(owner);
         vm.expectEmit(true, true, false, true);
-        emit PayeeUpdated(owner, payee1, NAME1, "Sari Bakery Baru");
-        registry.updatePayee(payee1, "Sari Bakery Baru");
+        emit PayeeUpdated(owner, payee1, NAME1, "Kedai Kopi Senja Baru");
+        registry.updatePayee(payee1, "Kedai Kopi Senja Baru");
         // Old name is freed, new name resolves.
         assertEq(registry.addressOf(owner, NAME1), address(0));
-        assertEq(registry.addressOf(owner, "sari bakery"), address(0));
-        assertEq(registry.addressOf(owner, "Sari Bakery Baru"), payee1);
-        assertEq(registry.addressOf(owner, "sari bakery baru"), payee1);
-        assertTrue(registry.matchesName(owner, payee1, "sari bakery baru"));
+        assertEq(registry.addressOf(owner, "kedai kopi senja"), address(0));
+        assertEq(registry.addressOf(owner, "Kedai Kopi Senja Baru"), payee1);
+        assertEq(registry.addressOf(owner, "kedai kopi senja baru"), payee1);
+        assertTrue(registry.matchesName(owner, payee1, "kedai kopi senja baru"));
         assertFalse(registry.matchesName(owner, payee1, NAME1));
         // The freed name can be registered by another payee.
         vm.prank(owner);
@@ -213,9 +213,9 @@ contract AgentPayVaultV3Test is Test {
     function test_v3_updateToSameNameDifferentCaseIsAllowed() public {
         // Same normalized hash: just a display-case change, no conflict.
         vm.prank(owner);
-        registry.updatePayee(payee1, "SARI BAKERY");
-        assertEq(registry.nameOf(owner, payee1), "SARI BAKERY");
-        assertEq(registry.addressOf(owner, "sari bakery"), payee1);
+        registry.updatePayee(payee1, "KEDAI KOPI SENJA");
+        assertEq(registry.nameOf(owner, payee1), "KEDAI KOPI SENJA");
+        assertEq(registry.addressOf(owner, "kedai kopi senja"), payee1);
         assertTrue(registry.matchesName(owner, payee1, NAME1));
     }
 
@@ -225,12 +225,12 @@ contract AgentPayVaultV3Test is Test {
         emit PayeeRemoved(owner, payee1, NAME1);
         registry.removePayee(payee1);
         assertEq(registry.addressOf(owner, NAME1), address(0));
-        assertEq(registry.addressOf(owner, "sari bakery"), address(0));
+        assertEq(registry.addressOf(owner, "kedai kopi senja"), address(0));
         assertFalse(registry.isRegistered(owner, payee1));
         // Name is free again after removal.
         vm.prank(owner);
-        registry.registerPayee(lookalike, "SARI BAKERY");
-        assertEq(registry.addressOf(owner, "sari bakery"), lookalike);
+        registry.registerPayee(lookalike, "KEDAI KOPI SENJA");
+        assertEq(registry.addressOf(owner, "kedai kopi senja"), lookalike);
     }
 
     // ---- v3: registry guards carried over from v2 ----
@@ -251,9 +251,9 @@ contract AgentPayVaultV3Test is Test {
 
     function test_v3_registry_namespacesArePerOwner() public {
         vm.prank(owner2);
-        registry.registerPayee(payee1, "Bakery Lain");
+        registry.registerPayee(payee1, "Kedai Lain");
         assertEq(registry.nameOf(owner, payee1), NAME1);
-        assertEq(registry.nameOf(owner2, payee1), "Bakery Lain");
+        assertEq(registry.nameOf(owner2, payee1), "Kedai Lain");
         vm.prank(owner2);
         vm.expectRevert(PayeeRegistryV3.PayeeAlreadyRegistered.selector);
         registry.registerPayee(payee1, "Hacked");
@@ -346,7 +346,7 @@ contract AgentPayVaultV3Test is Test {
         vm.prank(sessionKey);
         vm.expectEmit(true, true, false, true);
         emit PaymentExecuted(id, payee1, 50e6, block.timestamp);
-        vault.pay(id, payee1, 50e6, "sari bakery");
+        vault.pay(id, payee1, 50e6, "kedai kopi senja");
         assertEq(token.balanceOf(payee1), 50e6);
         assertEq(vault.balances(owner), 950e6);
         assertEq(vault.spentPerPayee(id, payee1), 50e6);
@@ -354,8 +354,8 @@ contract AgentPayVaultV3Test is Test {
 
     function test_v3_pay_succeedsWithAnyCaseVariant() public {
         uint256 id = _createSession();
-        _pay(id, payee1, 10e6, "SARI BAKERY");
-        _pay(id, payee1, 10e6, "SaRi BaKeRy");
+        _pay(id, payee1, 10e6, "KEDAI KOPI SENJA");
+        _pay(id, payee1, 10e6, "KeDaI KoPi SeNjA");
         _pay(id, payee2, 10e6, "TOKO LISTRIK JAYA");
         assertEq(token.balanceOf(payee1), 20e6);
         assertEq(token.balanceOf(payee2), 10e6);
@@ -363,13 +363,13 @@ contract AgentPayVaultV3Test is Test {
 
     function test_v3_pay_revertsOnWrongName_normalizedHashes() public {
         uint256 id = _createSession();
-        bytes32 expected = keccak256(bytes("sari bakrey"));
-        bytes32 registered = keccak256(bytes("sari bakery"));
+        bytes32 expected = keccak256(bytes("kedai kopi senaj"));
+        bytes32 registered = keccak256(bytes("kedai kopi senja"));
         vm.prank(sessionKey);
         vm.expectRevert(
             abi.encodeWithSelector(AgentPayVaultV3.PayeeNameMismatch.selector, expected, registered)
         );
-        vault.pay(id, payee1, 50e6, "Sari Bakrey");
+        vault.pay(id, payee1, 50e6, "Kedai Kopi Senaj");
         assertEq(token.balanceOf(payee1), 0);
         assertEq(vault.balances(owner), 1_000e6);
     }
@@ -388,18 +388,18 @@ contract AgentPayVaultV3Test is Test {
     function test_v3_pay_revertsWhenNameUpdated() public {
         uint256 id = _createSession();
         vm.prank(owner);
-        registry.updatePayee(payee1, "Sari Bakery Baru");
+        registry.updatePayee(payee1, "Kedai Kopi Senja Baru");
         vm.prank(sessionKey);
         vm.expectRevert(
             abi.encodeWithSelector(
                 AgentPayVaultV3.PayeeNameMismatch.selector,
-                keccak256(bytes("sari bakery")),
-                keccak256(bytes("sari bakery baru"))
+                keccak256(bytes("kedai kopi senja")),
+                keccak256(bytes("kedai kopi senja baru"))
             )
         );
         vault.pay(id, payee1, 50e6, NAME1);
         // The new name works, in any case.
-        _pay(id, payee1, 50e6, "sari bakery baru");
+        _pay(id, payee1, 50e6, "kedai kopi senja baru");
         assertEq(token.balanceOf(payee1), 50e6);
     }
 
@@ -410,7 +410,7 @@ contract AgentPayVaultV3Test is Test {
         vm.prank(sessionKey);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentPayVaultV3.PayeeNameMismatch.selector, wrongHash, keccak256(bytes("sari bakery"))
+                AgentPayVaultV3.PayeeNameMismatch.selector, wrongHash, keccak256(bytes("kedai kopi senja"))
             )
         );
         vault.pay(id, payee1, 1e6, wrongName);
@@ -425,9 +425,9 @@ contract AgentPayVaultV3Test is Test {
 
     function test_v3_pay_usesSessionOwnersNamespace() public {
         vm.prank(owner2);
-        registry.registerPayee(payee1, "Bakery Lain");
+        registry.registerPayee(payee1, "Kedai Lain");
         uint256 id = _createSession();
-        _pay(id, payee1, 50e6, "sari bakery");
+        _pay(id, payee1, 50e6, "kedai kopi senja");
         assertEq(token.balanceOf(payee1), 50e6);
     }
 
