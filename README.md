@@ -1119,11 +1119,15 @@ How AgentPay uses — and does not use — QDay platform features, verified
 | ERC-8004 registry | Still in internal testing; "isn't open for this challenge" (starter kit); the canonical registry addresses hold no code on Aevum | Not used; AgentPay keeps its own session registry in the vault. |
 | EIP-3009 gasless pattern | Works today (starter kit) | Roadmap (v1.1). |
 
-Judging rubric (starter kit, total 100): Innovation 20, UX 15,
-technical quality 15, utility 15, safety 15, demo 10, docs 10. The
-DoraHacks challenge page additionally lists an 8th criterion,
-"Ecosystem contribution (reusable, open source)", with no weight
-published.
+Judging: the DoraHacks challenge page lists seven criteria with no
+weights published (checked 25 Nov 2026): user experience and
+presentation; demo clear and well-structured; comprehensive
+documentation; innovation and originality; technical quality and
+platform integration; real-world utility and market potential; safety,
+trust and controls. The starter kit showed weights totalling 100
+(Innovation 20, UX 15, technical 15, utility 15, safety 15, demo 10,
+docs 10) when checked 20 Nov 2026; the current pages no longer
+publish weights.
 
 Sources: <https://qday.io/build>,
 <https://wiki.qday.info/guide/handbook/why-qday/>,
