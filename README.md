@@ -178,7 +178,9 @@ private key was briefly exposed in a public deploy, and all sessions
 that used it (v1 sessions 0–3, v2 sessions 0–3, v3 sessions 0–2) are
 revoked. The historical runs below still show the old address as the
 session key of those revoked sessions — that on-chain history is not
-rewritten. All future flows use the new key above.
+rewritten. All future flows use the new key above. The new key has not
+been used on-chain yet (no sessions, nonce 0, 0 tQDAY) — it needs
+testnet gas funding before it can pay.
 
 Deployment details (20 November 2026):
 
@@ -275,6 +277,17 @@ payee:
 | --- | --- | --- |
 | 2 | [`0x082b71a0…`](https://explorer-test.qday.info/tx/0x082b71a04698f7ae91fa6fa834578920b781902c86caf0c5bf9e646eba1c23e2) | 3,654,767 |
 | 3 | [`0xe7fba4b0…`](https://explorer-test.qday.info/tx/0xe7fba4b08614c4a3c3b968c3fc180839f92acfc3e52d76fb82c9bb324cd8b156) | 3,655,307 |
+
+Each session was funded by its own 0.40 tUSD8 deposit and the remainder
+withdrawn afterwards — session 2: deposit
+[tx `0x99817fe1…`](https://explorer-test.qday.info/tx/0x99817fe18ddeff81a679605dcb322b0fe215e049b6c95b71f40ae01ef439633e)
+(block 3,654,699), withdraw 0.35 tUSD8
+[tx `0x679f780b…`](https://explorer-test.qday.info/tx/0x679f780b8fd3619a5732e12c8109bd4f708e7ba6220dd8e96508f06c1b9903e7)
+(block 3,654,811); session 3: deposit
+[tx `0x0f2753fd…`](https://explorer-test.qday.info/tx/0x0f2753fd3c0d15a6263517a71f9223b3a330d7c386ad3296d9f528e38cc9275c)
+(block 3,655,160), withdraw 0.35 tUSD8
+[tx `0x88cccfa7…`](https://explorer-test.qday.info/tx/0x88cccfa729c64ab66d77033be91f14445e623999b72a7f394fa20f3197903b11)
+(block 3,655,350).
 
 Both sessions were revoked afterwards (blocks 3,654,791 and 3,655,331),
 so all four v1 sessions are revoked and the v1 vault emitted six
@@ -508,6 +521,20 @@ lowercase-name payment arrived in this run), v3 vault balance **0**,
 revoked (`nextSessionId` = 3 — the failed `createSession` consumed
 no id). Balances keep changing as live testing continues — check the
 explorer links above for current values.
+
+Note on session numbering: the official run above starts at session 1
+because an earlier v3 run the same day used session 0 (blocks
+3,740,187–3,740,270) with a different demo payee name; it is superseded
+and its transactions are not the official v3 evidence. That run moved
+the same amounts — deposit 0.40 tUSD8
+([tx `0xb94d4bae…`](https://explorer-test.qday.info/tx/0xb94d4baef242c3a2fc400575b3e071e2006d6c2a20a21a08e8b2c62ede52638c),
+block 3,740,193), payment 0.05 tUSD8
+([tx `0x442446b1…`](https://explorer-test.qday.info/tx/0x442446b10aaf832eaddbe7ddae04de719aba1c0675b78f108e9d9a93d5faad10),
+block 3,740,214), withdraw 0.35 tUSD8
+([tx `0x186e1c4a…`](https://explorer-test.qday.info/tx/0x186e1c4a7475887ca7dbb8ec8cf8087fcc6005fd5541f02065ca08880bcfb026),
+block 3,740,270) — and session 0 was revoked (block 3,740,265). This is
+why the owner balance was 4.60 (not 4.65) and the payee balance 0.40
+(not 0.35) when the official run started.
 
 ## Demo
 
